@@ -74,9 +74,12 @@ class Game {
     initGameObjects() {
         this.drone = new Drone(this.scene, this.physics);
         this.controls = new Controls();
-        this.levelManager = new LevelManager(this.scene);
+        this.levelManager = new LevelManager(this.scene, this.physics);
         this.isPlaying = false;
         this.currentLevel = 0;
+        
+        this.warningTimer = 10;
+        this.isOutOfBounds = false;
         
         // Practice Stats
         this.practiceStats = {
@@ -269,6 +272,43 @@ class Game {
                 
                 // Automatically return to level flight when no pitch/roll input
                 this.drone.autoLevel(state.pitch, state.roll);
+            }
+            
+            // Boundary Check
+            const boundary = 100;
+            const dronePos = this.drone.body.position;
+            const isOut = Math.abs(dronePos.x) > boundary || Math.abs(dronePos.z) > boundary || dronePos.y > 100;
+            const warningOverlay = document.getElementById('warning-overlay');
+            const warningTimerEl = document.getElementById('warning-timer');
+
+            if (isOut) {
+                if (!this.isOutOfBounds) {
+                    this.isOutOfBounds = true;
+                    this.warningTimer = 10.0;
+                    if (warningOverlay) warningOverlay.classList.add('active');
+                }
+                
+                this.warningTimer -= deltaTime;
+                if (warningTimerEl) warningTimerEl.textContent = Math.max(0, this.warningTimer).toFixed(1);
+                
+                if (this.warningTimer <= 0) {
+                    this.isOutOfBounds = false;
+                    if (warningOverlay) warningOverlay.classList.remove('active');
+                    
+                    // Reset drone
+                    this.drone.body.position.set(0, 2, 0);
+                    this.drone.body.velocity.set(0, 0, 0);
+                    this.drone.body.angularVelocity.set(0, 0, 0);
+                    this.drone.body.quaternion.set(0, 0, 0, 1);
+                    
+                    // Restart level logic
+                    this.startLevel(this.currentLevel);
+                }
+            } else {
+                if (this.isOutOfBounds) {
+                    this.isOutOfBounds = false;
+                    if (warningOverlay) warningOverlay.classList.remove('active');
+                }
             }
             
             // Track Practice Stats

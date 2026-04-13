@@ -8,7 +8,7 @@ export class Drone {
         
         // Settings
         this.thrustForce = 15;
-        this.rotationSpeed = 2;
+        this.rotationSpeed = 0.8;
         this.tiltForce = 4;
         
         this.initMesh();

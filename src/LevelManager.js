@@ -1,8 +1,10 @@
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 
 export class LevelManager {
-    constructor(scene) {
+    constructor(scene, physicsWorld) {
         this.scene = scene;
+        this.physicsWorld = physicsWorld;
         this.rings = [];
         this.score = 0;
         
@@ -29,6 +31,18 @@ export class LevelManager {
             // Don't spawn on the center
             if (building.position.length() > 10) {
                 this.scene.add(building);
+                
+                if (this.physicsWorld) {
+                    const shape = new CANNON.Box(new CANNON.Vec3(1, 5, 1));
+                    const body = new CANNON.Body({ mass: 0 });
+                    body.addShape(shape);
+                    body.position.set(
+                        building.position.x,
+                        building.position.y,
+                        building.position.z
+                    );
+                    this.physicsWorld.addBody(body);
+                }
             }
         }
     }
