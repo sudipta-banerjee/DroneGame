@@ -114,6 +114,14 @@ class Game {
             this.settingsOverlay.classList.remove('active');
         });
 
+        document.getElementById('help-btn').addEventListener('click', () => {
+            document.getElementById('help-overlay').classList.add('active');
+        });
+
+        document.getElementById('close-help-btn').addEventListener('click', () => {
+            document.getElementById('help-overlay').classList.remove('active');
+        });
+
         document.getElementById('control-mode').addEventListener('change', (e) => {
             this.controls.setMode(e.target.value);
         });
