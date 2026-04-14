@@ -148,11 +148,20 @@ export class Drone {
     }
 
     applyThrust(amount) {
+        // Auto-hover baseline to counteract gravity (mass 1 * 9.82 m/s^2)
+        const hoverForce = 9.82;
+        let totalForce = hoverForce;
+
+        if (amount > 0) {
+            totalForce += amount * (this.thrustForce - hoverForce);
+        } else if (amount < 0) {
+            totalForce += amount * hoverForce;
+        }
+
         // Upward force in local coordinates
-        const force = new CANNON.Vec3(0, amount * this.thrustForce, 0);
+        const force = new CANNON.Vec3(0, totalForce, 0);
         const worldForce = this.body.quaternion.vmult(force);
         // CANNON's applyForce takes a force and a relativePoint (offset from center of mass)
-        // Passing this.body.position would apply the force farther and farther away as the drone moved, causing huge torque and flipping!
         this.body.applyForce(worldForce, new CANNON.Vec3(0, 0, 0));
     }
 

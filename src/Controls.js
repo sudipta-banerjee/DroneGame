@@ -70,9 +70,10 @@ export class Controls {
         });
 
         this.leftJoystick.on('move', (evt, data) => {
-            if (data.vector) {
-                this.joystickData.left.x = data.vector.x;
-                this.joystickData.left.y = data.vector.y;
+            if (data.angle && data.distance) {
+                const mag = Math.min(data.distance / 50, 1.0);
+                this.joystickData.left.x = Math.cos(data.angle.radian) * mag;
+                this.joystickData.left.y = Math.sin(data.angle.radian) * mag;
             }
         });
 
@@ -90,9 +91,10 @@ export class Controls {
         });
 
         this.rightJoystick.on('move', (evt, data) => {
-            if (data.vector) {
-                this.joystickData.right.x = data.vector.x;
-                this.joystickData.right.y = data.vector.y;
+            if (data.angle && data.distance) {
+                const mag = Math.min(data.distance / 50, 1.0);
+                this.joystickData.right.x = Math.cos(data.angle.radian) * mag;
+                this.joystickData.right.y = Math.sin(data.angle.radian) * mag;
             }
         });
 

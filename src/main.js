@@ -265,7 +265,7 @@ class Game {
                 this.drone.body.angularVelocity.set(0, 0, 0);
                 this.drone.body.quaternion.set(0, 0, 0, 1);
             } else {
-                if (state.thrust !== 0) this.drone.applyThrust(state.thrust);
+                this.drone.applyThrust(state.thrust);
                 if (state.pitch !== 0) this.drone.moveForward(state.pitch);
                 if (state.roll !== 0) this.drone.moveSideways(state.roll);
                 if (state.yaw !== 0) this.drone.rotate(state.yaw);

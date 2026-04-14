@@ -310,3 +310,21 @@ select {
   min-width: 120px;
 }
 
+/* Portrait Mode Warning */
+#portrait-warning {
+  display: none !important;
+  z-index: 9999;
+}
+
+@media screen and (max-width: 900px) and (orientation: portrait) {
+  #portrait-warning {
+    display: flex !important;
+  }
+}
+
+@keyframes tilt {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-90deg); }
+  75% { transform: rotate(-90deg); }
+}
+
