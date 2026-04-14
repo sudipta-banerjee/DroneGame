@@ -99,7 +99,23 @@ class Game {
     }
 
     initUI() {
+        const enterFullscreen = async () => {
+            try {
+                const elem = document.documentElement;
+                if (elem.requestFullscreen) {
+                    await elem.requestFullscreen();
+                } else if (elem.webkitRequestFullscreen) { /* Safari */
+                    await elem.webkitRequestFullscreen();
+                } else if (elem.msRequestFullscreen) { /* IE11 */
+                    await elem.msRequestFullscreen();
+                }
+            } catch (err) {
+                console.warn("Fullscreen request restricted by browser:", err);
+            }
+        };
+
         document.getElementById('start-btn').addEventListener('click', () => {
+            enterFullscreen();
             console.log("UI: Start button clicked");
             this.menuOverlay.classList.remove('active');
             this.isPlaying = true;
@@ -131,6 +147,7 @@ class Game {
         });
 
         document.getElementById('continue-btn').addEventListener('click', () => {
+            enterFullscreen();
             document.getElementById('results-overlay').classList.remove('active');
             this.startLevel(1);
             this.isPlaying = true;
@@ -144,6 +161,7 @@ class Game {
         });
 
         document.getElementById('restart-practice-btn').addEventListener('click', () => {
+            enterFullscreen();
             document.getElementById('results-overlay').classList.remove('active');
             
             this.practiceStats = {
