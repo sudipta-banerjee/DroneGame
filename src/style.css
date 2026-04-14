@@ -328,3 +328,29 @@ select {
   75% { transform: rotate(-90deg); }
 }
 
+/* Horizontal Screen / Short screen fixes */
+@media screen and (max-height: 500px) {
+  .menu-content {
+    padding: 15px 30px;
+  }
+  h1 {
+    font-size: 2rem;
+  }
+  .subtitle {
+    margin-bottom: 15px;
+    font-size: 0.8rem;
+  }
+  .menu-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+  }
+  .menu-buttons .glow-btn {
+    width: auto;
+    flex: 1;
+    padding: 10px;
+    margin: 0;
+    font-size: 0.9rem;
+  }
+}
+
