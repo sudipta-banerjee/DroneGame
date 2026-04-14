@@ -247,6 +247,14 @@ class Game {
             batVal.textContent = Math.max(0, currentBat).toFixed(1);
             batFill.style.width = `${currentBat}%`;
         }
+
+        const dbg = document.getElementById('debug-joystick');
+        if (dbg && this.controls) {
+            const lj = this.controls.joystickData.left;
+            const rj = this.controls.joystickData.right;
+            const state = this.controls.getState();
+            dbg.textContent = `L [Thrust/Yaw] X: ${lj.x.toFixed(2)} Y: ${lj.y.toFixed(2)} => Thrust: ${state.thrust.toFixed(2)} Yaw: ${state.yaw.toFixed(2)}\nR [Pitch/Roll] X: ${rj.x.toFixed(2)} Y: ${rj.y.toFixed(2)} => Pitch: ${state.pitch.toFixed(2)} Roll: ${state.roll.toFixed(2)}`;
+        }
     }
 
     showResults() {
