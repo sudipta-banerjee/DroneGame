@@ -102,7 +102,8 @@ export class Controls {
         });
 
         // Toggle visibility based on device
-        if (!('ontouchstart' in window)) {
+        const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
+        if (!isTouchDevice) {
             container.style.display = 'none';
         }
 
