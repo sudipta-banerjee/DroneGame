@@ -64,16 +64,17 @@ export class Controls {
         // Left Joystick: Thrust and Yaw
         this.leftJoystick = nipplejs.create({
             zone: leftZone,
-            mode: 'static',
-            position: { left: '50%', top: '50%' },
+            mode: 'semi',
+            catchDistance: 150,
             color: '#00f2ff'
         });
 
         this.leftJoystick.on('move', (evt, data) => {
-            if (data.vector && data.distance !== undefined) {
+            if (data.angle && data.distance !== undefined) {
                 const mag = Math.min(data.distance / 50, 1.0);
-                this.joystickData.left.x = data.vector.x * mag;
-                this.joystickData.left.y = data.vector.y * mag;
+                // Invert X because the game engine treats +1 Yaw as turning Left
+                this.joystickData.left.x = -Math.cos(data.angle.radian) * mag;
+                this.joystickData.left.y = Math.sin(data.angle.radian) * mag;
             }
         });
 
@@ -85,16 +86,16 @@ export class Controls {
         // Right Joystick: Pitch and Roll
         this.rightJoystick = nipplejs.create({
             zone: rightZone,
-            mode: 'static',
-            position: { left: '50%', top: '50%' },
+            mode: 'semi',
+            catchDistance: 150,
             color: '#ff00ff'
         });
 
         this.rightJoystick.on('move', (evt, data) => {
-            if (data.vector && data.distance !== undefined) {
+            if (data.angle && data.distance !== undefined) {
                 const mag = Math.min(data.distance / 50, 1.0);
-                this.joystickData.right.x = data.vector.x * mag;
-                this.joystickData.right.y = data.vector.y * mag;
+                this.joystickData.right.x = Math.cos(data.angle.radian) * mag;
+                this.joystickData.right.y = Math.sin(data.angle.radian) * mag;
             }
         });
 
