@@ -1,23 +1,16 @@
-// Basic Service Worker to satisfy PWA install requirements
-const CACHE_NAME = 'neon-drone-cache-v1';
+const CACHE_NAME = 'neon-drone-cache-v2';
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      // We don't strictly need to cache anything to trigger the install prompt,
-      // but caching the root makes it load instantly offline.
-      return cache.addAll(['/', '/index.html', '/favicon.svg']);
-    })
-  );
+  // Immediately install the new service worker to replace the broken one
   self.skipWaiting();
 });
 
+self.addEventListener('activate', (e) => {
+  // Take control of all pages immediately
+  e.waitUntil(clients.claim());
+});
+
 self.addEventListener('fetch', (e) => {
-  e.respondWith(
-    caches.match(e.request).then((response) => {
-      return response || fetch(e.request);
-    }).catch(() => {
-      return caches.match('/index.html');
-    })
-  );
+  // Empty listener. This simply satisfies PWA install criteria.
+  // We DO NOT intercept fetch requests as it breaks Vite's dev server and JS module loading.
 });
