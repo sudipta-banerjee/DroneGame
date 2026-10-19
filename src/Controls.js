@@ -154,7 +154,7 @@ export class Controls {
                     this._setRightJoystickOpacity(false);
                     return 'denied';
                 }
-            } catch (err) {
+            } catch (_err) {
                 this.mode = 'joystick';
                 this._setRightJoystickOpacity(false);
                 return 'denied';

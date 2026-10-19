@@ -123,7 +123,7 @@ first makes all later tuning consistent.
 - `.glow-btn.small` (and any HUD action buttons) have a min-height ≥ 44px and adequate padding.
 - Buttons remain easy to tap without accidental misses.
 
-### T8 — Pause the game when the portrait warning is active  `[ ]`
+### T8 — Pause the game when the portrait warning is active  `[x]`
 **Why:** Battery/UX — physics + timers keep running behind the portrait overlay.
 **Files:** `src/main.js`
 **Acceptance:**
@@ -132,7 +132,7 @@ first makes all later tuning consistent.
   it was playing before).
 - Timers (practice, warning, battery) freeze while paused.
 
-### T9 — Reset battery and score on (re)start  `[ ]`
+### T9 — Reset battery and score on (re)start  `[x]`
 **Why:** Gameplay integrity — battery is a one-shot countdown; score never resets.
 **Files:** `src/main.js` (battery), `src/LevelManager.js` (score reset)
 **Acceptance:**
@@ -140,7 +140,7 @@ first makes all later tuning consistent.
 - `spawnLevel()` (or a `resetScore()` method) resets `LevelManager.score` to 0 on a new mission.
 - Restarting practice shows 100% battery; restarting a mission shows 0 score.
 
-### T10 — Add a mission-complete win condition  `[ ]`
+### T10 — Add a mission-complete win condition  `[x]`
 **Why:** Gameplay gap — collecting all 5 rings does nothing.
 **Files:** `src/LevelManager.js` (completion check + callback), `index.html` (overlay),
 `src/main.js` (handler)
@@ -149,7 +149,7 @@ first makes all later tuning consistent.
 - Options to replay the mission or return to the menu.
 - Score is finalized and displayed.
 
-### T11 — Audio system  `[ ]`
+### T11 — Audio system  `[x]`
 **Why:** Enhancement — a flight sim with zero audio feels hollow.
 **Files:** new `src/Audio.js`, `src/main.js` (hooks), `index.html` (mute toggle)
 **Acceptance:**
@@ -158,7 +158,7 @@ first makes all later tuning consistent.
 - A mute toggle in the HUD/settings; respects `localStorage` preference.
 - Starts only after a user gesture (browser autoplay policy).
 
-### T12 — Visual feedback: ring collection + collisions  `[ ]`
+### T12 — Visual feedback: ring collection + collisions  `[x]`
 **Why:** Enhancement — `flashRing` is a no-op; building collisions have no feedback.
 **Files:** `src/LevelManager.js` (`flashRing`), `src/main.js` (collision event), `src/Drone.js`
 **Acceptance:**

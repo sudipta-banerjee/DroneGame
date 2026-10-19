@@ -37,6 +37,7 @@
       <button id="end-practice-btn" class="glow-btn small" style="display: none;">END PRACTICE</button>
       <button id="skip-btn" class="glow-btn small" style="display: none;">SKIP PRACTICE</button>
       <button id="reset-btn" class="glow-btn small mobile-only" aria-label="Reset drone" title="Reset drone">RESET</button>
+      <button id="mute-btn" class="glow-btn small" aria-label="Toggle audio" title="Toggle audio">🔊</button>
       <button id="help-btn" class="glow-btn small">?</button>
     </div>
 
@@ -74,7 +75,7 @@
         <button id="start-btn" class="glow-btn">INITIALIZE FLIGHT</button>
         <button id="settings-btn" class="glow-btn secondary">SETTINGS</button>
       </div>
-      <div style="margin-top: 15px; font-size: 0.7rem; color: rgba(0, 242, 255, 0.4); letter-spacing: 2px;">V_1.15</div>
+      <div style="margin-top: 15px; font-size: 0.7rem; color: rgba(0, 242, 255, 0.4); letter-spacing: 2px;">V_1.20</div>
     </div>
   </div>
 
@@ -166,6 +167,22 @@
         </ul>
       </div>
       <button id="close-help-btn" class="glow-btn secondary">CLOSE MANUAL</button>
+    </div>
+  </div>
+
+  <!-- Mission Complete Overlay (T10) -->
+  <div id="mission-complete-overlay" class="overlay">
+    <div class="menu-content">
+      <h2 style="color: #00f2ff; text-shadow: 0 0 20px #00f2ff;">MISSION COMPLETE</h2>
+      <p class="subtitle">ALL TARGETS ACQUIRED</p>
+      <div class="stats-grid" style="grid-template-columns: 1fr;">
+        <div class="stat-item">
+          <div class="label">FINAL SCORE</div>
+          <div class="value"><span id="mission-final-score">0</span> pts</div>
+        </div>
+      </div>
+      <button id="mission-replay-btn" class="glow-btn">REPLAY MISSION</button>
+      <button id="mission-menu-btn" class="glow-btn secondary" style="margin-top: 10px;">MAIN MENU</button>
     </div>
   </div>
 

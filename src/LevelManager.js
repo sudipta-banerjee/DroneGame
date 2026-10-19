@@ -7,6 +7,15 @@ export class LevelManager {
         this.physicsWorld = physicsWorld;
         this.rings = [];
         this.score = 0;
+
+        // T10: callback set by main.js; fired when all rings are collected.
+        this.onMissionComplete = null;
+
+        // T11/T12: audio reference injected by main.js after construction.
+        this.audio = null;
+
+        // T12: active flash lights (removed after their lifetime)
+        this._flashLights = [];
         
         this.initEnvironment();
         this.spawnLevel(1);
@@ -52,6 +61,10 @@ export class LevelManager {
         this.rings.forEach(r => this.scene.remove(r));
         this.rings = [];
 
+        // T9: Reset score on every new level spawn so retries always start from 0.
+        this.score = 0;
+        this.updateScoreUI();
+
         if (levelNum === 0) {
             console.log("Practice Mode: Level 0 Initialized");
             return; // No rings in practice mode
@@ -85,6 +98,11 @@ export class LevelManager {
                 
                 // Play a visual effect (glow flash or something)
                 this.flashRing(ring.position);
+
+                // T10: all rings cleared → mission complete
+                if (this.rings.length === 0 && this.onMissionComplete) {
+                    this.onMissionComplete(this.score);
+                }
             }
         }
     }
@@ -94,7 +112,34 @@ export class LevelManager {
         if (scoreEl) scoreEl.textContent = this.score;
     }
 
+    /**
+     * T12: Brief cyan point-light flash at the ring's world position.
+     * The light is added to the scene, its intensity lerped down over ~0.4 s,
+     * then removed. update(dt) drives the decay each frame.
+     */
     flashRing(pos) {
-        // Placeholder for a particle or light effect
+        const light = new THREE.PointLight(0x00f2ff, 6, 12);
+        light.position.copy(pos);
+        this.scene.add(light);
+        this._flashLights.push({ light, life: 0.4 }); // 0.4 s lifetime
+
+        // T11: ring chime
+        if (this.audio) this.audio.playRingChime();
+    }
+
+    /**
+     * T12: Tick flash light lifetimes. Call once per frame from main.js animate().
+     */
+    update(dt) {
+        for (let i = this._flashLights.length - 1; i >= 0; i--) {
+            const entry = this._flashLights[i];
+            entry.life -= dt;
+            // Fade intensity proportionally to remaining life
+            entry.light.intensity = Math.max(0, (entry.life / 0.4) * 6);
+            if (entry.life <= 0) {
+                this.scene.remove(entry.light);
+                this._flashLights.splice(i, 1);
+            }
+        }
     }
 }

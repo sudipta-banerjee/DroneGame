@@ -421,3 +421,24 @@ body.debug #debug-joystick {
   }
 }
 
+
+/* T12: Collision screen flash — brief red vignette, no interaction, fades out. */
+#collision-flash {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 9998;
+  opacity: 0;
+  display: none;
+}
+
+#collision-flash.active {
+  display: block;
+  animation: collision-fade 0.4s ease-out forwards;
+}
+
+@keyframes collision-fade {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}

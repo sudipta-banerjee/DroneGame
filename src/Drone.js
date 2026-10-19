@@ -112,9 +112,9 @@ export class Drone {
         );
         
         // Engine Visual feedback
-        let baseThrust = state ? Math.max(0.1, state.thrust) : 0.1;
-        let pitchInput = state ? state.pitch : 0; 
-        let rollInput = state ? state.roll : 0;   
+        const baseThrust = state ? Math.max(0.1, state.thrust) : 0.1;
+        const pitchInput = state ? state.pitch : 0;
+        const rollInput  = state ? state.roll  : 0;
         
         // Spin Rotors & modulate thrust trails
         // Rotor indices: 0: RearRight, 1: RearLeft, 2: FrontRight, 3: FrontLeft
@@ -186,7 +186,7 @@ export class Drone {
         this.body.applyTorque(worldTorque);
     }
 
-    autoLevel(pitchState, rollState) {
+    autoLevel(_pitchState, _rollState) {
         // We removed the early return here!
         // Now auto-level runs continuously, fighting against W/A/S/D inputs.
         // This naturally limits the maximum tilt angle and creates an equilibrium, preventing flips!
