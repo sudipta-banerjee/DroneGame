@@ -61,18 +61,26 @@ DroneGame/
 
 ```
 index.html
-   │  (module script)
+   │  (module script: /src/main.js)
    ▼
-main.js  ──►  new Game()
-   │
-   ├── initThree()        Three.js scene/camera/renderer/lights
-   ├── initPhysics()      new PhysicsWorld()
-   ├── spawnEnvironment() grid + ground plane (cannon-es)
-   ├── initGameObjects()  Drone, Controls, LevelManager; practice stats; startLevel(0)
-   ├── initUI()            wires all DOM buttons (start/skip/end/restart/settings/help/continue)
-   └── animate()          requestAnimationFrame loop → physics step → control poll →
-                           drone forces → boundary check → stats → render → camera follow
+src/main.js  (entry SHELL — tiny: style.css + @vercel/analytics + DOM overlay wiring)
+   │  - Pure-DOM menu/settings/help/back/close-help wiring (work before the 3D bundle loads)
+   │  - Lazy-loads src/game.js via dynamic import on "INITIALIZE FLIGHT"
+   ▼
+src/game.js  (heavy: three.js + cannon-es + nipplejs + Game class)
+   └─►  new Game()
+         ├── initThree()        Three.js scene/camera/renderer/lights
+         ├── initPhysics()       new PhysicsWorld()
+         ├── spawnEnvironment()  grid + ground plane (cannon-es)
+         ├── initGameObjects()   Drone, Controls, LevelManager; practice stats; startLevel(0)
+         ├── initUI()            wires in-game buttons (skip/end-practice/continue/restart/reset/control-mode)
+         └── animate()           requestAnimationFrame loop → physics step → control poll →
+                                 drone forces → boundary check → stats → render → camera follow
 ```
+
+**Lazy-load (bundle optimization):** the initial download is ~2 KB gzipped (shell + analytics),
+so the menu is interactive immediately. The ~163 KB gzipped 3D bundle only downloads when the
+user clicks "INITIALIZE FLIGHT". Build output: `index-*.js` (shell) + `game-*.js` (lazy chunk).
 
 **Per-frame data flow inside `animate()`** (`src/main.js`, the `Game.animate` method):
 
