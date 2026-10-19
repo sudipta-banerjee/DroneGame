@@ -47,7 +47,14 @@ body, html {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 20px;
+  /* Safe-area insets (T5): keep the HUD clear of notches / home indicator.
+     viewport-fit=cover is set in index.html so env() reports real insets;
+     max() guarantees ≥20px on devices where env() resolves to 0. */
+  padding:
+    max(20px, env(safe-area-inset-top))
+    max(20px, env(safe-area-inset-right))
+    max(20px, env(safe-area-inset-bottom))
+    max(20px, env(safe-area-inset-left));
   text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
 }
 
@@ -211,6 +218,17 @@ select {
   font-family: var(--font-main);
 }
 
+/* Gyro permission status (T3) */
+.gyro-status {
+  margin-top: 10px;
+  min-height: 1.2em;
+  font-family: var(--font-accent);
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+}
+.gyro-status.ok { color: var(--neon-cyan); }
+.gyro-status.error { color: #ff5555; }
+
 /* Loading Screen */
 #loading-screen {
   position: fixed;
@@ -243,13 +261,16 @@ select {
 /* Mobile Joysticks Container */
 #joysticks-container {
   position: absolute;
-  bottom: 40px;
+  /* Lift above the home indicator with a 40px gap (T5): preserves the original
+     40px visual offset on notch-less devices (env() → 0 there). */
+  bottom: calc(40px + env(safe-area-inset-bottom));
   left: 0;
   width: 100%;
   height: 150px;
   display: flex;
   justify-content: space-between;
-  padding: 0 40px;
+  /* Side padding respects the notch on left/right in landscape (T5). */
+  padding: 0 max(40px, env(safe-area-inset-right)) 0 max(40px, env(safe-area-inset-left));
   pointer-events: none;
   z-index: 20;
 }
@@ -266,13 +287,57 @@ select {
 
 /* Practice UI */
 .glow-btn.small {
-  padding: 8px 15px;
+  /* T7: 44px tap target (iOS/Android minimum). inline-flex vertically centers the
+     label within the min-height; horizontal padding stays compact to fit the HUD row. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 16px;
   font-size: 0.8rem;
   margin: 0;
   margin-left: 10px;
   width: auto;
-  display: inline-block;
   pointer-events: auto;
+}
+
+/* Mobile-only HUD controls (hidden unless Controls.js adds .touch-device to <body>).
+   !important is needed to override .glow-btn.small's display:inline-block on non-touch. */
+.mobile-only {
+  display: none !important;
+}
+
+body.touch-device .mobile-only {
+  display: inline-flex !important;
+}
+
+/* Debug joystick telemetry (T6): hidden by default; main.js adds .debug to <body>
+   when the URL contains ?debug=1. Kept as a class so it's trivial to toggle. */
+#debug-joystick {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #00ff00;
+  z-index: 1000;
+  font-family: monospace;
+  text-align: center;
+  pointer-events: none;
+  text-shadow: 0 0 5px #000;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  display: none;
+}
+
+body.debug #debug-joystick {
+  display: block;
+}
+
+/* On-screen reset button (T2): thumb-friendly tap target, only on touch devices. */
+#reset-btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 10px 16px;
 }
 
 .stats-grid {

@@ -109,6 +109,8 @@ export class Controls {
         if (!isTouchDevice) {
             container.style.display = 'none';
         }
+        // Expose touch state on <body> so CSS can show/hide mobile-only UI (e.g. reset button).
+        document.body.classList.toggle('touch-device', isTouchDevice);
 
         // Gyroscope setup
         if (window.DeviceOrientationEvent) {
@@ -122,14 +124,51 @@ export class Controls {
         }
     }
 
-    setMode(mode) {
-        this.mode = mode;
-        const container = document.getElementById('joysticks-container');
-        if (container) {
-            // Right joystick is replaced by gyro in 'gyro' mode
-            const right = document.getElementById('right-joystick');
-            if (right) right.style.opacity = mode === 'gyro' ? '0.2' : '1';
+    // Set the active control mode. For 'gyro' on iOS 13+, request DeviceOrientation
+    // permission. This MUST run from a user gesture — the settings <select> change event
+    // calls setMode, and requestPermission() is invoked synchronously before the first
+    // await, so iOS's gesture requirement is satisfied. Returns a status string:
+    // 'granted' | 'denied' | 'unsupported' | 'ok' (joystick mode needs no permission).
+    async setMode(mode) {
+        if (mode !== 'gyro') {
+            this.mode = 'joystick';
+            this._setRightJoystickOpacity(false);
+            return 'ok';
         }
+
+        // gyro mode requested
+        if (typeof window.DeviceOrientationEvent === 'undefined') {
+            this.mode = 'joystick';
+            this._setRightJoystickOpacity(false);
+            return 'unsupported';
+        }
+
+        // iOS 13+ requires an explicit permission prompt triggered from a user gesture.
+        // Android/desktop have DeviceOrientationEvent but no requestPermission, so they
+        // fall through and use gyro directly (events fire without a prompt).
+        if (typeof window.DeviceOrientationEvent.requestPermission === 'function') {
+            try {
+                const response = await window.DeviceOrientationEvent.requestPermission();
+                if (response !== 'granted') {
+                    this.mode = 'joystick';
+                    this._setRightJoystickOpacity(false);
+                    return 'denied';
+                }
+            } catch (err) {
+                this.mode = 'joystick';
+                this._setRightJoystickOpacity(false);
+                return 'denied';
+            }
+        }
+
+        this.mode = 'gyro';
+        this._setRightJoystickOpacity(true);
+        return 'granted';
+    }
+
+    _setRightJoystickOpacity(dim) {
+        const right = document.getElementById('right-joystick');
+        if (right) right.style.opacity = dim ? '0.2' : '1';
     }
 
     getState() {

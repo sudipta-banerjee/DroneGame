@@ -26,9 +26,8 @@
   <div id="game-container"></div>
 
   <!-- HUD Layer -->
-  <div id="debug-joystick"
-    style="position: absolute; top: 70px; left: 50%; transform: translateX(-50%); color: #00ff00; z-index: 1000; font-family: monospace; text-align: center; pointer-events: none; text-shadow: 0 0 5px #000; font-size: 0.8rem; line-height: 1.2;">
-  </div>
+  <!-- Debug telemetry (T6): hidden by default; add ?debug=1 to the URL to show. -->
+  <div id="debug-joystick"></div>
 
   <div id="hud">
     <div class="hud-top">
@@ -37,6 +36,7 @@
       <div class="stat-box" id="score-display">SCORE: <span id="current-score">0</span></div>
       <button id="end-practice-btn" class="glow-btn small" style="display: none;">END PRACTICE</button>
       <button id="skip-btn" class="glow-btn small" style="display: none;">SKIP PRACTICE</button>
+      <button id="reset-btn" class="glow-btn small mobile-only" aria-label="Reset drone" title="Reset drone">RESET</button>
       <button id="help-btn" class="glow-btn small">?</button>
     </div>
 
@@ -87,6 +87,7 @@
           <option value="joystick">VIRTUAL JOYSTICKS</option>
           <option value="gyro">GYROSCOPE / TILT</option>
         </select>
+        <div id="gyro-status" class="gyro-status" role="status" aria-live="polite"></div>
       </div>
       <button id="back-btn" class="glow-btn secondary">BACK</button>
     </div>

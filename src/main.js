@@ -7,6 +7,12 @@ import './style.css';
 
 class Game {
     constructor() {
+        // Debug telemetry (T6): only show #debug-joystick when ?debug=1 is in the URL.
+        document.body.classList.toggle(
+            'debug',
+            new URLSearchParams(location.search).get('debug') === '1'
+        );
+
         this.container = document.getElementById('game-container');
         this.loadingScreen = document.getElementById('loading-screen');
         this.menuOverlay = document.getElementById('menu-overlay');
@@ -17,7 +23,12 @@ class Game {
         this.spawnEnvironment();
         this.initGameObjects();
         this.initUI();
-        
+
+        // Frame timing baseline for a frame-rate-independent loop (T1).
+        // Real, clamped delta time makes physics + timers behave identically on 60/90/120Hz
+        // and prevents a physics explosion when returning from a backgrounded tab.
+        this.lastFrameTime = performance.now();
+
         this.animate();
         
         // Hide loader after a short delay
@@ -36,7 +47,10 @@ class Game {
 
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(window.devicePixelRatio);
+        // Cap DPR at 2 (T4): prevents 3×–4× fillrate overdraw on high-end phones.
+        // 2 is visually indistinguishable from native DPR at typical viewing distances
+        // and roughly halves GPU load on a 3× device.
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.container.appendChild(this.renderer.domElement);
 
         // Lights
@@ -138,8 +152,15 @@ class Game {
             document.getElementById('help-overlay').classList.remove('active');
         });
 
-        document.getElementById('control-mode').addEventListener('change', (e) => {
-            this.controls.setMode(e.target.value);
+        // On-screen reset (T2): touch users have no 'R' key — this button shares the reset path.
+        const resetBtn = document.getElementById('reset-btn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => this.resetDrone());
+        }
+
+        document.getElementById('control-mode').addEventListener('change', async (e) => {
+            const status = await this.controls.setMode(e.target.value);
+            this.updateGyroStatus(status, e.target);
         });
 
         document.getElementById('skip-btn').addEventListener('click', () => {
@@ -214,9 +235,42 @@ class Game {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        // Re-apply the DPR cap in case the window moved to a different display (T4).
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     }
 
-    updateHUD() {
+    // Shared drone reset (T2): used by both the 'R' key and the on-screen reset button.
+    resetDrone() {
+        if (!this.drone || !this.drone.body) return;
+        this.drone.body.position.set(0, 2, 0);
+        this.drone.body.velocity.set(0, 0, 0);
+        this.drone.body.angularVelocity.set(0, 0, 0);
+        this.drone.body.quaternion.set(0, 0, 0, 1);
+    }
+
+    // Gyro permission status feedback (T3). Reverts the <select> to 'joystick' on deny/unsupported.
+    updateGyroStatus(status, selectEl) {
+        const statusEl = document.getElementById('gyro-status');
+        if (!statusEl) return;
+        if (status === 'granted') {
+            statusEl.textContent = 'TILT CONTROLS ENABLED';
+            statusEl.className = 'gyro-status ok';
+        } else if (status === 'denied') {
+            statusEl.textContent = 'PERMISSION DENIED — USING JOYSTICKS';
+            statusEl.className = 'gyro-status error';
+            if (selectEl) selectEl.value = 'joystick';
+        } else if (status === 'unsupported') {
+            statusEl.textContent = 'GYRO NOT SUPPORTED — USING JOYSTICKS';
+            statusEl.className = 'gyro-status error';
+            if (selectEl) selectEl.value = 'joystick';
+        } else {
+            // 'ok' — joystick mode, no permission needed
+            statusEl.textContent = '';
+            statusEl.className = 'gyro-status';
+        }
+    }
+
+    updateHUD(dt) {
         const pos = this.drone.body.position;
         const speed = this.drone.body.velocity.length() * 3.6; // m/s to km/h
         
@@ -238,12 +292,12 @@ class Game {
             this.practiceStats.maxAlt = Math.max(this.practiceStats.maxAlt, pos.y);
         }
 
-        // Battery drain logic (simplified)
+        // Battery drain logic (frame-rate-independent): 0.3%/s ≈ the old 0.005/frame at 60fps.
         const batFill = document.getElementById('bat-fill');
         const batVal = document.getElementById('bat-val');
         let currentBat = parseFloat(batVal.textContent);
         if (currentBat > 0 && this.isPlaying) {
-            currentBat -= 0.005;
+            currentBat -= 0.3 * dt;
             batVal.textContent = Math.max(0, currentBat).toFixed(1);
             batFill.style.width = `${currentBat}%`;
         }
@@ -285,7 +339,11 @@ class Game {
     animate() {
         requestAnimationFrame(() => this.animate());
 
-        const deltaTime = 0.016; 
+        // Real, clamped delta time (T1). Cap at 0.05s so physics never explodes after a
+        // tab is backgrounded; cannon-es's 3 sub-steps at 1/60 exactly absorb 0.05s.
+        const now = performance.now();
+        const deltaTime = Math.max(0, Math.min((now - this.lastFrameTime) / 1000, 0.05));
+        this.lastFrameTime = now;
         
         if (this.isPlaying) {
             this.physics.update(deltaTime);
@@ -293,11 +351,8 @@ class Game {
             const state = this.controls.getState();
             
             if (state.reset) {
-                // Instantly reset the drone if 'R' is pressed
-                this.drone.body.position.set(0, 2, 0);
-                this.drone.body.velocity.set(0, 0, 0);
-                this.drone.body.angularVelocity.set(0, 0, 0);
-                this.drone.body.quaternion.set(0, 0, 0, 1);
+                // Instantly reset the drone if 'R' is pressed (T2: shared with on-screen button)
+                this.resetDrone();
             } else {
                 this.drone.applyThrust(state.thrust);
                 if (state.pitch !== 0) this.drone.moveForward(state.pitch);
@@ -368,7 +423,7 @@ class Game {
             // Pass state into drone update for dynamic visual effects
             this.drone.update(state);
             this.levelManager.checkCollisions(this.drone.group.position);
-            this.updateHUD();
+            this.updateHUD(deltaTime);
 
             // Camera follow (Decoupled Pitch/Roll for maximum UX clarity)
             // Extract ONLY the Yaw (Y-axis rotation) from the drone
