@@ -3,6 +3,7 @@ import { PhysicsWorld } from './PhysicsWorld';
 import { Drone } from './Drone';
 import { Controls } from './Controls';
 import { LevelManager } from './LevelManager';
+import { Audio } from './Audio';
 import './style.css';
 
 class Game {
@@ -28,6 +29,31 @@ class Game {
         // Real, clamped delta time makes physics + timers behave identically on 60/90/120Hz
         // and prevents a physics explosion when returning from a backgrounded tab.
         this.lastFrameTime = performance.now();
+
+        // Portrait-pause (T8): freeze physics + timers while the portrait warning is visible,
+        // and restore play state when the user rotates back to landscape.
+        this._wasPlayingBeforePortrait = false;
+        const portraitQuery = window.matchMedia('(orientation: portrait)');
+        const handleOrientationChange = (e) => {
+            if (e.matches) {
+                // Entering portrait — pause only if currently playing
+                this._wasPlayingBeforePortrait = this.isPlaying;
+                if (this.isPlaying) {
+                    this.isPlaying = false;
+                }
+            } else {
+                // Returning to landscape — resume only if we paused it
+                if (this._wasPlayingBeforePortrait) {
+                    this.isPlaying = true;
+                    this._wasPlayingBeforePortrait = false;
+                    // Reset frame timer so the first delta after resume isn't huge
+                    this.lastFrameTime = performance.now();
+                }
+            }
+        };
+        portraitQuery.addEventListener('change', handleOrientationChange);
+        // Run once at start in case the page loads in portrait
+        handleOrientationChange(portraitQuery);
 
         this.animate();
         
@@ -89,6 +115,28 @@ class Game {
         this.drone = new Drone(this.scene, this.physics);
         this.controls = new Controls();
         this.levelManager = new LevelManager(this.scene, this.physics);
+        this.audio = new Audio(); // T11: audio system
+
+        // T11/T12: give LevelManager access to audio for ring chime
+        this.levelManager.audio = this.audio;
+
+        // T10: wire the mission-complete callback
+        this.levelManager.onMissionComplete = (finalScore) => this.showMissionComplete(finalScore);
+
+        // T12: collision thud — cannon-es fires 'collide' on the body when it hits something.
+        // Throttle to once per 500 ms to avoid rapid-fire thuds during a sustained contact.
+        this._lastCollisionTime = 0;
+        if (this.drone && this.drone.body) {
+            this.drone.body.addEventListener('collide', () => {
+                const now = performance.now();
+                if (now - this._lastCollisionTime > 500) {
+                    this._lastCollisionTime = now;
+                    this.audio.playCollisionThud();
+                    this._triggerScreenFlash();
+                }
+            });
+        }
+
         this.isPlaying = false;
         this.currentLevel = 0;
         
@@ -129,6 +177,7 @@ class Game {
         };
 
         document.getElementById('start-btn').addEventListener('click', () => {
+            this.audio.playUIClick();
             enterFullscreen();
             console.log("UI: Start button clicked");
             this.menuOverlay.classList.remove('active');
@@ -137,18 +186,22 @@ class Game {
         });
 
         document.getElementById('settings-btn').addEventListener('click', () => {
+            this.audio.playUIClick();
             this.settingsOverlay.classList.add('active');
         });
 
         document.getElementById('back-btn').addEventListener('click', () => {
+            this.audio.playUIClick();
             this.settingsOverlay.classList.remove('active');
         });
 
         document.getElementById('help-btn').addEventListener('click', () => {
+            this.audio.playUIClick();
             document.getElementById('help-overlay').classList.add('active');
         });
 
         document.getElementById('close-help-btn').addEventListener('click', () => {
+            this.audio.playUIClick();
             document.getElementById('help-overlay').classList.remove('active');
         });
 
@@ -164,10 +217,12 @@ class Game {
         });
 
         document.getElementById('skip-btn').addEventListener('click', () => {
+            this.audio.playUIClick();
             this.startLevel(1);
         });
 
         document.getElementById('continue-btn').addEventListener('click', () => {
+            this.audio.playUIClick();
             enterFullscreen();
             document.getElementById('results-overlay').classList.remove('active');
             this.startLevel(1);
@@ -176,12 +231,14 @@ class Game {
 
         document.getElementById('end-practice-btn').addEventListener('click', () => {
             if (this.currentLevel === 0) {
+                this.audio.playUIClick();
                 console.log("UI: End Practice clicked");
                 this.showResults();
             }
         });
 
         document.getElementById('restart-practice-btn').addEventListener('click', () => {
+            this.audio.playUIClick();
             enterFullscreen();
             document.getElementById('results-overlay').classList.remove('active');
             
@@ -205,6 +262,34 @@ class Game {
             this.startLevel(0);
             this.isPlaying = true;
         });
+
+        // Mission complete overlay buttons (T10)
+        document.getElementById('mission-replay-btn').addEventListener('click', () => {
+            this.audio.playUIClick();
+            enterFullscreen();
+            document.getElementById('mission-complete-overlay').classList.remove('active');
+            this.resetDrone();
+            this.startLevel(1);
+            this.isPlaying = true;
+        });
+
+        document.getElementById('mission-menu-btn').addEventListener('click', () => {
+            this.audio.playUIClick();
+            document.getElementById('mission-complete-overlay').classList.remove('active');
+            this.isPlaying = false;
+            this.menuOverlay.classList.add('active');
+        });
+
+        // Mute toggle button (T11)
+        const muteBtn = document.getElementById('mute-btn');
+        if (muteBtn) {
+            // Initialise icon from persisted state
+            muteBtn.textContent = this.audio.muted ? '🔇' : '🔊';
+            muteBtn.addEventListener('click', () => {
+                const nowMuted = this.audio.toggleMute();
+                muteBtn.textContent = nowMuted ? '🔇' : '🔊';
+            });
+        }
     }
 
     startLevel(levelNum) {
@@ -212,7 +297,18 @@ class Game {
         this.currentLevel = levelNum;
         this.levelManager.spawnLevel(levelNum);
         document.getElementById('current-level').textContent = levelNum;
-        
+
+        // T9: Reset battery to 100% on every (re)start so it's always a fresh countdown.
+        const batFill = document.getElementById('bat-fill');
+        const batVal = document.getElementById('bat-val');
+        if (batVal) batVal.textContent = '100';
+        if (batFill) batFill.style.width = '100%';
+
+        // T9: Reset score display. LevelManager.spawnLevel already zeros this.score;
+        // we keep the DOM in sync here so the HUD never shows a stale value.
+        const scoreEl = document.getElementById('current-score');
+        if (scoreEl) scoreEl.textContent = '0';
+
         const timerDisp = document.getElementById('timer-display');
         const skipBtn = document.getElementById('skip-btn');
         const endPracticeBtn = document.getElementById('end-practice-btn');
@@ -336,6 +432,33 @@ class Game {
         document.getElementById('results-overlay').classList.add('active');
     }
 
+    // T10: show the mission-complete overlay with the final score.
+    showMissionComplete(score) {
+        this.isPlaying = false;
+        const el = document.getElementById('mission-final-score');
+        if (el) el.textContent = score;
+        document.getElementById('mission-complete-overlay').classList.add('active');
+    }
+
+    /**
+     * T12: Brief red screen flash on collision.
+     * Uses a simple CSS-animated overlay div rather than a Three.js post-process
+     * to keep it lightweight and frame-rate-independent.
+     */
+    _triggerScreenFlash() {
+        let flashEl = document.getElementById('collision-flash');
+        if (!flashEl) {
+            flashEl = document.createElement('div');
+            flashEl.id = 'collision-flash';
+            document.body.appendChild(flashEl);
+        }
+        // Reset animation by removing and re-adding the class
+        flashEl.classList.remove('active');
+        // Trigger reflow so the removal is processed before we re-add
+        void flashEl.offsetWidth;
+        flashEl.classList.add('active');
+    }
+
     animate() {
         requestAnimationFrame(() => this.animate());
 
@@ -422,7 +545,9 @@ class Game {
             
             // Pass state into drone update for dynamic visual effects
             this.drone.update(state);
+            this.audio.updateEngine(state.thrust); // T11: modulate engine hum
             this.levelManager.checkCollisions(this.drone.group.position);
+            this.levelManager.update(deltaTime); // T12: tick ring flash lights
             this.updateHUD(deltaTime);
 
             // Camera follow (Decoupled Pitch/Roll for maximum UX clarity)
