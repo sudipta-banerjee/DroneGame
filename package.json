@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "cannon-es": "^0.20.0",
     "nipplejs": "^1.0.1",
     "three": "^0.183.2"

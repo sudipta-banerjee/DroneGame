@@ -4,10 +4,12 @@ import { Drone } from './Drone';
 import { Controls } from './Controls';
 import { LevelManager } from './LevelManager';
 import { Audio } from './Audio';
-import { inject } from '@vercel/analytics';
+import { inject as injectAnalytics } from '@vercel/analytics';
+import { injectSpeedInsights } from '@vercel/speed-insights';
 import './style.css';
 
-inject();
+injectAnalytics();
+injectSpeedInsights();
 
 class Game {
     constructor() {

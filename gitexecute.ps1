@@ -1,14 +1,15 @@
 <#
 .SYNOPSIS
     gitexecute.ps1 - safe commit pipeline for Windows:
-    lint -> pull (rebase) -> bump version -> build -> audit -> commit -> push
+    lint -> pull (rebase) -> bump version (.env) -> build -> audit -> commit -> push
 
 .DESCRIPTION
     1. Validates commit message argument.
     2. Runs eslint (lint).
     3. Pulls latest changes with rebase.
-    4. Auto-bumps the display version in index.html (e.g. V_1.22 -> V_1.23)
-       and updates the cache version in public/sw.js to prevent browser cache retention.
+    4. Auto-bumps the version in .env (e.g. 1.22 -> 1.23) which dynamically
+       populates %VITE_APP_VERSION% in index.html, and updates the cache version
+       in public/sw.js to prevent browser cache retention.
     5. Runs production build (vite build) to ensure compilation succeeds with new version.
     6. Runs npm security audit.
     7. Stages all changes, commits, and pushes to remote.
@@ -90,44 +91,49 @@ if ($LASTEXITCODE -ne 0) {
 }
 git stash pop --quiet 2>$null
 
-# --- 4. Auto-bump version in index.html and public/sw.js (cache-busting) -------
-Write-Info "Bumping version in index.html..."
+# --- 4. Auto-bump version in .env and public/sw.js (dynamic cache-busting) -----
+Write-Info "Bumping version in .env..."
 
-$indexPath = Join-Path $PSScriptRoot "index.html"
-$newVersion = $null
-if (Test-Path -LiteralPath $indexPath) {
-    $indexContent = [System.IO.File]::ReadAllText($indexPath, [System.Text.Encoding]::UTF8)
-    if ($indexContent -match 'V_(\d+)\.(\d+)') {
-        $currentVersion = $Matches[0]
+$envPath = Join-Path $PSScriptRoot ".env"
+$currentVersion = "1.22"
+$newVersion = "1.23"
+
+if (Test-Path -LiteralPath $envPath) {
+    $envContent = [System.IO.File]::ReadAllText($envPath, [System.Text.Encoding]::UTF8)
+    if ($envContent -match 'VITE_APP_VERSION=(\d+)\.(\d+)') {
         $major = [int]$Matches[1]
         $minor = [int]$Matches[2]
+        $currentVersion = "$major.$minor"
         $newMinor = $minor + 1
-        $newVersion = "V_${major}.${newMinor}"
-
-        $indexContent = $indexContent.Replace($currentVersion, $newVersion)
-        [System.IO.File]::WriteAllText($indexPath, $indexContent, [System.Text.Encoding]::UTF8)
-        Write-Ok "Version bumped in index.html: $currentVersion -> $newVersion"
-
-        # Update cache name in public/sw.js to prevent browser cache retention
-        $swPath = Join-Path $PSScriptRoot "public\sw.js"
-        if (Test-Path -LiteralPath $swPath) {
-            $swContent = [System.IO.File]::ReadAllText($swPath, [System.Text.Encoding]::UTF8)
-            $newSwContent = [System.Text.RegularExpressions.Regex]::Replace(
-                $swContent,
-                "const CACHE_NAME = ['`"].*?['`"];",
-                "const CACHE_NAME = 'neon-drone-cache-$newVersion';"
-            )
-            if ($newSwContent -ne $swContent) {
-                [System.IO.File]::WriteAllText($swPath, $newSwContent, [System.Text.Encoding]::UTF8)
-                Write-Ok "Service worker cache updated in public\sw.js: neon-drone-cache-$newVersion"
-            }
-        }
+        $newVersion = "$major.$newMinor"
+        $envContent = [System.Text.RegularExpressions.Regex]::Replace(
+            $envContent,
+            "VITE_APP_VERSION=\d+\.\d+",
+            "VITE_APP_VERSION=$newVersion"
+        )
+        [System.IO.File]::WriteAllText($envPath, $envContent, [System.Text.Encoding]::UTF8)
     } else {
-        Write-Warn "Could not find a V_X.Y version string in index.html - skipping bump."
+        $envContent += "`nVITE_APP_VERSION=$newVersion`n"
+        [System.IO.File]::WriteAllText($envPath, $envContent, [System.Text.Encoding]::UTF8)
     }
 } else {
-    Write-Err "index.html not found!"
-    exit 1
+    [System.IO.File]::WriteAllText($envPath, "VITE_APP_VERSION=$newVersion`n", [System.Text.Encoding]::UTF8)
+}
+Write-Ok "Version bumped in .env: $currentVersion -> $newVersion"
+
+# Update cache name in public/sw.js to prevent browser cache retention
+$swPath = Join-Path $PSScriptRoot "public\sw.js"
+if (Test-Path -LiteralPath $swPath) {
+    $swContent = [System.IO.File]::ReadAllText($swPath, [System.Text.Encoding]::UTF8)
+    $newSwContent = [System.Text.RegularExpressions.Regex]::Replace(
+        $swContent,
+        "const CACHE_NAME = ['`"].*?['`"];",
+        "const CACHE_NAME = 'neon-drone-cache-v$newVersion';"
+    )
+    if ($newSwContent -ne $swContent) {
+        [System.IO.File]::WriteAllText($swPath, $newSwContent, [System.Text.Encoding]::UTF8)
+        Write-Ok "Service worker cache updated in public\sw.js: neon-drone-cache-v$newVersion"
+    }
 }
 
 # --- 5. Production build (catches compile / import errors with new version) -----
@@ -175,4 +181,4 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-Write-Ok "All done! Version $newVersion successfully committed and pushed."
+Write-Ok "All done! Version V_$newVersion successfully committed and pushed."

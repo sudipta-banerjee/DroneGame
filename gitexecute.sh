@@ -1,8 +1,11 @@
-#!/usr/bin/env zsh
-# gitexecute.sh — safe commit pipeline: lint → build → audit → bump version → pull → commit → push
+#!/usr/bin/env bash
+# gitexecute.sh — safe commit pipeline: lint → pull → bump version (.env) → build → audit → commit → push
 # Usage: ./gitexecute.sh "your commit message"
 
 set -e  # exit immediately on any non-zero exit code
+
+# Always run from the project root, regardless of where the script is invoked from.
+cd "$(dirname "$0")"
 
 # ── 1. Require a commit message ───────────────────────────────────────────────
 if [[ -z "$1" ]]; then
@@ -21,7 +24,47 @@ if ! npm run lint; then
 fi
 echo "✅  Lint passed."
 
-# ── 3. Production build (catches compile / import errors) ─────────────────────
+# ── 3. Pull latest (rebase to keep history linear) ───────────────────────────
+echo "⬇️   Pulling latest changes..."
+# Stash any working-tree changes so the rebase can proceed cleanly, then restore them afterwards.
+git stash --include-untracked --quiet
+if ! git pull --rebase; then
+  echo "❌  git pull --rebase failed. Please resolve merge conflicts."
+  git stash pop --quiet 2>/dev/null || true
+  exit 1
+fi
+git stash pop --quiet 2>/dev/null || true   # no-op if nothing was stashed
+
+# ── 4. Auto-bump version in .env and public/sw.js ────────────────────────────
+echo "🔖  Bumping version in .env..."
+
+if [ ! -f .env ]; then
+  echo "VITE_APP_VERSION=1.22" > .env
+fi
+
+CURRENT=$(grep -E '^VITE_APP_VERSION=' .env | cut -d= -f2 | tr -d '\r\n')
+
+if [[ -z "$CURRENT" ]]; then
+  CURRENT="1.22"
+  NEW_VERSION="1.23"
+else
+  MAJOR=$(echo "$CURRENT" | cut -d. -f1)
+  MINOR=$(echo "$CURRENT" | cut -d. -f2)
+  NEW_MINOR=$(( MINOR + 1 ))
+  NEW_VERSION="${MAJOR}.${NEW_MINOR}"
+fi
+
+# Update .env (compatible with both macOS BSD sed and Linux GNU sed)
+sed -i.bak -E "s/^VITE_APP_VERSION=.*/VITE_APP_VERSION=${NEW_VERSION}/" .env && rm -f .env.bak
+echo "✅  Version bumped in .env: ${CURRENT} → ${NEW_VERSION}"
+
+# Update service worker cache name in public/sw.js to prevent browser caching
+if [ -f "public/sw.js" ]; then
+  sed -i.bak -E "s/const CACHE_NAME = ['\"][^'\"]*['\"];/const CACHE_NAME = 'neon-drone-cache-v${NEW_VERSION}';/" public/sw.js && rm -f public/sw.js.bak
+  echo "✅  Service worker cache updated in public/sw.js: neon-drone-cache-v${NEW_VERSION}"
+fi
+
+# ── 5. Production build (catches compile / import errors with new version) ─────
 echo "🔨  Running build..."
 if ! npm run build; then
   echo "❌  Build failed. Fix errors before committing."
@@ -29,7 +72,7 @@ if ! npm run build; then
 fi
 echo "✅  Build passed."
 
-# ── 4. Security audit (block on high/critical vulnerabilities) ────────────────
+# ── 6. Security audit (block on high/critical vulnerabilities) ────────────────
 echo "🔒  Running security audit..."
 # --audit-level high: exit non-zero only for high or critical severities
 if ! npm audit --audit-level high; then
@@ -37,35 +80,6 @@ if ! npm audit --audit-level high; then
   exit 1
 fi
 echo "✅  Security audit passed."
-
-# ── 5. Pull latest (rebase to keep history linear) ───────────────────────────
-echo "⬇️   Pulling latest changes..."
-# Stash any working-tree changes (e.g. package-lock.json from audit fix) so
-# the rebase can proceed cleanly, then restore them afterwards.
-git stash --include-untracked --quiet
-git pull --rebase
-git stash pop --quiet 2>/dev/null || true   # no-op if nothing was stashed
-
-# ── 6. Auto-bump version in index.html (V_X.Y → V_X.Y+1) ────────────────────
-echo "🔖  Bumping version in index.html..."
-
-# Read the current version string, e.g. V_1.19
-CURRENT=$(grep -oE 'V_[0-9]+\.[0-9]+' index.html | head -1)
-
-if [[ -z "$CURRENT" ]]; then
-  echo "⚠️   Could not find a V_X.Y version string in index.html — skipping bump."
-else
-  # Split into major and minor
-  MAJOR=$(echo "$CURRENT" | grep -oE '[0-9]+\.[0-9]+' | cut -d. -f1)
-  MINOR=$(echo "$CURRENT" | grep -oE '[0-9]+\.[0-9]+' | cut -d. -f2)
-  NEW_MINOR=$(( MINOR + 1 ))
-  NEW_VERSION="V_${MAJOR}.${NEW_MINOR}"
-
-  # In-place replace (macOS sed requires '' for -i)
-  sed -i '' "s/${CURRENT}/${NEW_VERSION}/g" index.html
-
-  echo "✅  Version bumped: ${CURRENT} → ${NEW_VERSION}"
-fi
 
 # ── 7. Stage everything ───────────────────────────────────────────────────────
 echo "📦  Staging all changes..."
@@ -85,4 +99,4 @@ git commit -m "$COMMIT_MSG"
 echo "🚀  Pushing to remote..."
 git push
 
-echo "✓  All done."
+echo "✓  All done! Version V_${NEW_VERSION} successfully committed and pushed."
