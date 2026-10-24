@@ -177,6 +177,11 @@ class Game {
             } catch (err) {
                 console.warn("Fullscreen request restricted by browser:", err);
             }
+            setTimeout(() => {
+                if (this.controls && typeof this.controls.reposition === 'function') {
+                    this.controls.reposition();
+                }
+            }, 100);
         };
 
         document.getElementById('start-btn').addEventListener('click', () => {
@@ -256,7 +261,7 @@ class Game {
             };
             
             if (this.drone && this.drone.body) {
-                this.drone.body.position.set(0, 0.05, 0);
+                this.drone.body.position.set(0, 1.5, 0);
                 this.drone.body.velocity.set(0, 0, 0);
                 this.drone.body.angularVelocity.set(0, 0, 0);
                 this.drone.body.quaternion.set(0, 0, 0, 1);
@@ -480,6 +485,11 @@ class Game {
                 // Instantly reset the drone if 'R' is pressed (T2: shared with on-screen button)
                 this.resetDrone();
             } else {
+                // Ground assist: if player gives pitch/roll input while touching the floor, gently lift off
+                if (this.drone.body.position.y < 0.25 && (state.pitch !== 0 || state.roll !== 0)) {
+                    this.drone.body.applyForce(new CANNON.Vec3(0, 8, 0), new CANNON.Vec3(0, 0, 0));
+                }
+
                 this.drone.applyThrust(state.thrust);
                 if (state.pitch !== 0) this.drone.moveForward(state.pitch);
                 if (state.roll !== 0) this.drone.moveSideways(state.roll);

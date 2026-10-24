@@ -93,7 +93,7 @@ export class Drone {
             angularDamping: 0.8 // Kept high for flight stability
         });
         this.body.addShape(shape);
-        this.body.position.set(0, 0.05, 0);
+        this.body.position.set(0, 1.5, 0);
         this.physicsWorld.addBody(this.body);
     }
 
@@ -158,8 +158,15 @@ export class Drone {
             totalForce += amount * hoverForce;
         }
 
+        // Auto-hover tilt compensation:
+        // When tilted, the vertical world component of thrust is totalForce * cos(tilt).
+        // Dividing totalForce by cos(tilt) ensures the drone maintains altitude when pitching/rolling!
+        const localUp = this.body.quaternion.vmult(new CANNON.Vec3(0, 1, 0));
+        const tiltCos = Math.max(0.5, localUp.y);
+        const compensatedForce = totalForce / tiltCos;
+
         // Upward force in local coordinates
-        const force = new CANNON.Vec3(0, totalForce, 0);
+        const force = new CANNON.Vec3(0, compensatedForce, 0);
         const worldForce = this.body.quaternion.vmult(force);
         // CANNON's applyForce takes a force and a relativePoint (offset from center of mass)
         this.body.applyForce(worldForce, new CANNON.Vec3(0, 0, 0));

@@ -76,17 +76,21 @@ body, html {
 
 .hud-bottom {
   display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  align-items: flex-end;
+  max-width: 480px;
+  margin: 0 auto;
 }
 
 .meter-group {
   flex: 1;
-  min-width: 150px;
+  min-width: 90px;
+  max-width: 150px;
   background: var(--glass-bg);
   backdrop-filter: blur(5px);
   border: 1px solid var(--glass-border);
-  padding: 10px;
+  padding: 8px 12px;
   border-radius: 4px;
 }
 
@@ -258,31 +262,83 @@ select {
   to { transform: rotate(360deg); }
 }
 
-/* Mobile Joysticks Container */
+/* Mobile Joysticks Container
+   NOTE: Do NOT use display: flex on #joysticks-container!
+   Nipplejs checks if zone.parentElement has display: flex and miscalculates touch offsets.
+   Using display: block with absolute-positioned child zones avoids that bug completely. */
 #joysticks-container {
-  position: absolute;
-  /* Lift above the home indicator with a 40px gap (T5): preserves the original
-     40px visual offset on notch-less devices (env() → 0 there). */
-  bottom: calc(40px + env(safe-area-inset-bottom));
-  left: 0;
+  position: fixed;
+  inset: 0;
   width: 100%;
-  height: 150px;
-  display: flex;
-  justify-content: space-between;
-  /* Side padding respects the notch on left/right in landscape (T5). */
-  padding: 0 max(40px, env(safe-area-inset-right)) 0 max(40px, env(safe-area-inset-left));
+  height: 100%;
+  display: block;
   pointer-events: none;
-  z-index: 20;
+  z-index: 25;
 }
 
 .joystick-zone {
-  position: relative;
-  width: 120px;
-  height: 120px;
-  background: rgba(255, 255, 255, 0.05);
+  position: absolute;
+  width: 130px;
+  height: 130px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.1);
   pointer-events: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#left-joystick {
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  left: max(24px, env(safe-area-inset-left));
+  background: radial-gradient(circle, rgba(0, 242, 255, 0.1) 0%, rgba(0, 242, 255, 0.02) 70%, transparent 100%);
+  border: 1.5px solid rgba(0, 242, 255, 0.35);
+  box-shadow: 0 0 15px rgba(0, 242, 255, 0.15), inset 0 0 15px rgba(0, 242, 255, 0.05);
+}
+
+#right-joystick {
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  right: max(24px, env(safe-area-inset-right));
+  background: radial-gradient(circle, rgba(255, 0, 255, 0.1) 0%, rgba(255, 0, 255, 0.02) 70%, transparent 100%);
+  border: 1.5px solid rgba(255, 0, 255, 0.35);
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.15), inset 0 0 15px rgba(255, 0, 255, 0.05);
+}
+
+.joystick-label {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-accent);
+  font-size: 0.65rem;
+  letter-spacing: 1.5px;
+  white-space: nowrap;
+  pointer-events: none;
+  text-shadow: 0 0 8px currentColor;
+  opacity: 0.85;
+}
+
+.joystick-label.cyan {
+  color: var(--neon-cyan);
+}
+
+.joystick-label.pink {
+  color: var(--neon-pink);
+}
+
+/* Nipplejs custom cyber styling */
+.joystick .back {
+  border: 1px dashed rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.6) !important;
+}
+
+#left-joystick .joystick .front {
+  box-shadow: 0 0 15px var(--neon-cyan), 0 0 4px #ffffff !important;
+  border: 2px solid #ffffff !important;
+}
+
+#right-joystick .joystick .front {
+  box-shadow: 0 0 15px var(--neon-pink), 0 0 4px #ffffff !important;
+  border: 2px solid #ffffff !important;
 }
 
 /* Practice UI */

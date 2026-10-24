@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 
 <head>
@@ -28,6 +28,16 @@
   <!-- HUD Layer -->
   <!-- Debug telemetry (T6): hidden by default; add ?debug=1 to the URL to show. -->
   <div id="debug-joystick"></div>
+
+  <!-- Mobile Virtual Joysticks -->
+  <div id="joysticks-container">
+    <div id="left-joystick" class="joystick-zone">
+      <div class="joystick-label cyan">ALTITUDE / YAW</div>
+    </div>
+    <div id="right-joystick" class="joystick-zone">
+      <div class="joystick-label pink">DIRECTION (MOVE)</div>
+    </div>
+  </div>
 
   <div id="hud">
     <div class="hud-top">
@@ -75,7 +85,7 @@
         <button id="start-btn" class="glow-btn">INITIALIZE FLIGHT</button>
         <button id="settings-btn" class="glow-btn secondary">SETTINGS</button>
       </div>
-      <div style="margin-top: 15px; font-size: 0.7rem; color: rgba(0, 242, 255, 0.4); letter-spacing: 2px;">V_1.22</div>
+      <div style="margin-top: 15px; font-size: 0.7rem; color: rgba(0, 242, 255, 0.4); letter-spacing: 2px;">V_1.23</div>
     </div>
   </div>
 

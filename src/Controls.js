@@ -46,33 +46,54 @@ export class Controls {
     }
 
     initMobile() {
-        // Create Joystick containers if they don't exist
-        const container = document.createElement('div');
-        container.id = 'joysticks-container';
-        document.body.appendChild(container);
+        // Find existing joystick elements from DOM or create them
+        let container = document.getElementById('joysticks-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'joysticks-container';
+            document.body.appendChild(container);
+        }
 
-        const leftZone = document.createElement('div');
-        leftZone.className = 'joystick-zone';
-        leftZone.id = 'left-joystick';
-        container.appendChild(leftZone);
+        let leftZone = document.getElementById('left-joystick');
+        if (!leftZone) {
+            leftZone = document.createElement('div');
+            leftZone.className = 'joystick-zone';
+            leftZone.id = 'left-joystick';
+            container.appendChild(leftZone);
+        }
 
-        const rightZone = document.createElement('div');
-        rightZone.className = 'joystick-zone';
-        rightZone.id = 'right-joystick';
-        container.appendChild(rightZone);
+        let rightZone = document.getElementById('right-joystick');
+        if (!rightZone) {
+            rightZone = document.createElement('div');
+            rightZone.className = 'joystick-zone';
+            rightZone.id = 'right-joystick';
+            container.appendChild(rightZone);
+        }
 
-        // Left Joystick: Thrust and Yaw
+        // Left Joystick: Thrust (Y) and Yaw (X)
+        // Using static mode keeps the joystick permanently centered inside its zone.
         this.leftJoystick = nipplejs.create({
             zone: leftZone,
-            mode: 'semi',
-            catchDistance: 150,
-            color: '#00f2ff'
+            mode: 'static',
+            position: { left: '50%', top: '50%' },
+            size: 110,
+            color: {
+                back: 'rgba(0, 242, 255, 0.15)',
+                front: '#00f2ff'
+            },
+            restOpacity: 0.75,
+            catchDistance: 150
         });
 
         this.leftJoystick.on('move', (evt, data) => {
-            if (data.angle && data.distance !== undefined) {
-                const mag = Math.min(data.distance / 50, 1.0);
-                // Invert X because the game engine treats +1 Yaw as turning Left
+            if (data.vector) {
+                // data.vector.x: positive is right, negative is left
+                // data.vector.y: positive is up, negative is down
+                // Game engine treats +1 Yaw as turning Left, so invert X
+                this.joystickData.left.x = -Math.min(Math.max(data.vector.x, -1), 1);
+                this.joystickData.left.y = Math.min(Math.max(data.vector.y, -1), 1);
+            } else if (data.angle && data.distance !== undefined) {
+                const mag = Math.min(data.distance / 55, 1.0);
                 this.joystickData.left.x = -Math.cos(data.angle.radian) * mag;
                 this.joystickData.left.y = Math.sin(data.angle.radian) * mag;
             }
@@ -83,17 +104,28 @@ export class Controls {
             this.joystickData.left.y = 0;
         });
 
-        // Right Joystick: Pitch and Roll
+        // Right Joystick: Pitch (Forward/Back) and Roll (Left/Right)
         this.rightJoystick = nipplejs.create({
             zone: rightZone,
-            mode: 'semi',
-            catchDistance: 150,
-            color: '#ff00ff'
+            mode: 'static',
+            position: { left: '50%', top: '50%' },
+            size: 110,
+            color: {
+                back: 'rgba(255, 0, 255, 0.15)',
+                front: '#ff00ff'
+            },
+            restOpacity: 0.75,
+            catchDistance: 150
         });
 
         this.rightJoystick.on('move', (evt, data) => {
-            if (data.angle && data.distance !== undefined) {
-                const mag = Math.min(data.distance / 50, 1.0);
+            if (data.vector) {
+                // data.vector.x: positive is right (roll right), negative is left (roll left)
+                // data.vector.y: positive is up (pitch forward), negative is down (pitch backward)
+                this.joystickData.right.x = Math.min(Math.max(data.vector.x, -1), 1);
+                this.joystickData.right.y = Math.min(Math.max(data.vector.y, -1), 1);
+            } else if (data.angle && data.distance !== undefined) {
+                const mag = Math.min(data.distance / 55, 1.0);
                 this.joystickData.right.x = Math.cos(data.angle.radian) * mag;
                 this.joystickData.right.y = Math.sin(data.angle.radian) * mag;
             }
@@ -104,13 +136,32 @@ export class Controls {
             this.joystickData.right.y = 0;
         });
 
-        // Toggle visibility based on device
-        const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
+        // Toggle visibility based on device touch capability
+        const isTouchDevice = ('ontouchstart' in window) || 
+            (navigator.maxTouchPoints > 0) || 
+            (navigator.msMaxTouchPoints > 0) || 
+            (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+
         if (!isTouchDevice) {
             container.style.display = 'none';
         }
         // Expose touch state on <body> so CSS can show/hide mobile-only UI (e.g. reset button).
         document.body.classList.toggle('touch-device', isTouchDevice);
+
+        // If a touch interaction occurs at any time, reveal joysticks and recalculate positions
+        window.addEventListener('touchstart', () => {
+            container.style.display = 'block';
+            document.body.classList.add('touch-device');
+            setTimeout(() => this.reposition(), 50);
+        }, { once: true });
+
+        // Auto-reposition joysticks when window size or orientation changes
+        window.addEventListener('resize', () => {
+            setTimeout(() => this.reposition(), 60);
+        });
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => this.reposition(), 100);
+        });
 
         // Gyroscope setup
         if (window.DeviceOrientationEvent) {
@@ -121,6 +172,15 @@ export class Controls {
                     this.gyroData.roll = e.gamma / 45;
                 }
             });
+        }
+    }
+
+    reposition() {
+        if (this.leftJoystick && typeof this.leftJoystick.reposition === 'function') {
+            this.leftJoystick.reposition();
+        }
+        if (this.rightJoystick && typeof this.rightJoystick.reposition === 'function') {
+            this.rightJoystick.reposition();
         }
     }
 

@@ -154,13 +154,22 @@ through the air!
 Your code does this with:
 ```javascript
 // applyThrust() in Drone.js
-const force = new CANNON.Vec3(0, totalForce, 0);       // force in LOCAL coordinates
-const worldForce = this.body.quaternion.vmult(force);  // rotate into WORLD coordinates
+const localUp = this.body.quaternion.vmult(new CANNON.Vec3(0, 1, 0));
+const tiltCos = Math.max(0.5, localUp.y);
+const compensatedForce = totalForce / tiltCos; // Tilt compensation!
+
+const force = new CANNON.Vec3(0, compensatedForce, 0);  // force in LOCAL coordinates
+const worldForce = this.body.quaternion.vmult(force);   // rotate into WORLD coordinates
 this.body.applyForce(worldForce, new CANNON.Vec3(0,0,0));
 ```
 `quaternion.vmult` rotates the upward force by however much the drone is
 tilted — so if the drone is pitched forward 20°, some of that force becomes
 forward motion automatically. Real drones work *exactly* like this.
+
+Notice the **tilt compensation** (`totalForce / tiltCos`): when a drone tilts,
+some of its vertical lift turns into forward speed. If you didn't boost the
+rotors slightly while tilting, the drone would lose altitude and fall! Dividing
+by `tiltCos` ensures the drone stays at the exact same height while flying forward!
 
 ---
 
@@ -330,6 +339,13 @@ getState() {
 The **clamping** (`Math.min(Math.max(v, -1), 1)`) means no matter how
 many buttons you press at once, the value never goes above 1 or below -1.
 This is the same concept as a **limiter** in real aircraft fly-by-wire systems.
+
+#### Mobile Virtual Joysticks
+On phones and tablets, the game renders two glowing on-screen joysticks:
+- **Left Joystick (Neon Cyan)**: controls **Thrust** (climb up / descend) and **Yaw** (spin left / right).
+- **Right Joystick (Neon Pink)**: controls **Direction** — drag up to pitch **Forward**, down for **Backward**, left for **Roll Left**, and right for **Roll Right**.
+
+These use `mode: 'static'` inside fixed round zones so the joysticks stay perfectly in place under your thumbs instead of jumping around the screen. When you let go, springs snap the knobs back to center, and auto-hover takes over!
 
 The **gyroscope mode** reads the phone's tilt sensors:
 ```javascript
