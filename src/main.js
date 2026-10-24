@@ -166,6 +166,11 @@ class Game {
     }
 
     initUI() {
+        const versionEl = document.getElementById('app-version');
+        if (versionEl && import.meta.env.VITE_APP_VERSION) {
+            versionEl.textContent = `V_${import.meta.env.VITE_APP_VERSION}`;
+        }
+
         const enterFullscreen = async () => {
             try {
                 const elem = document.documentElement;

@@ -95,8 +95,9 @@ git stash pop --quiet 2>$null
 Write-Info "Bumping version in .env..."
 
 $envPath = Join-Path $PSScriptRoot ".env"
-$currentVersion = "1.22"
-$newVersion = "1.23"
+$currentVersion = "1.24"
+$newVersion = "1.25"
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
 if (Test-Path -LiteralPath $envPath) {
     $envContent = [System.IO.File]::ReadAllText($envPath, [System.Text.Encoding]::UTF8)
@@ -111,13 +112,13 @@ if (Test-Path -LiteralPath $envPath) {
             "VITE_APP_VERSION=\d+\.\d+",
             "VITE_APP_VERSION=$newVersion"
         )
-        [System.IO.File]::WriteAllText($envPath, $envContent, [System.Text.Encoding]::UTF8)
+        [System.IO.File]::WriteAllText($envPath, $envContent, $utf8NoBom)
     } else {
         $envContent += "`nVITE_APP_VERSION=$newVersion`n"
-        [System.IO.File]::WriteAllText($envPath, $envContent, [System.Text.Encoding]::UTF8)
+        [System.IO.File]::WriteAllText($envPath, $envContent, $utf8NoBom)
     }
 } else {
-    [System.IO.File]::WriteAllText($envPath, "VITE_APP_VERSION=$newVersion`n", [System.Text.Encoding]::UTF8)
+    [System.IO.File]::WriteAllText($envPath, "VITE_APP_VERSION=$newVersion`n", $utf8NoBom)
 }
 Write-Ok "Version bumped in .env: $currentVersion -> $newVersion"
 
