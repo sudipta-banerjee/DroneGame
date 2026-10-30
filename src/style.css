@@ -12,6 +12,9 @@
   box-sizing: border-box;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+#game-container, canvas, .joystick-zone {
   touch-action: none;
 }
 
@@ -134,6 +137,10 @@ body, html {
   align-items: center;
   z-index: 100;
   backdrop-filter: blur(8px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+  touch-action: pan-y;
 }
 
 .overlay.active {
@@ -143,12 +150,70 @@ body, html {
 .menu-content {
   text-align: center;
   max-width: 500px;
-  padding: 40px;
+  width: 100%;
+  padding: 30px;
   border: 1px solid var(--neon-cyan);
-  background: rgba(0, 20, 30, 0.4);
-  box-shadow: 0 0 30px rgba(0, 242, 255, 0.2);
+  background: rgba(0, 20, 30, 0.85);
+  box-shadow: 0 0 30px rgba(0, 242, 255, 0.25);
   max-height: 90vh;
   overflow-y: auto;
+  position: relative;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dialog-close-btn {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(0, 242, 255, 0.4);
+  color: var(--neon-cyan);
+  font-family: var(--font-accent);
+  font-size: 1.1rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+  touch-action: manipulation;
+}
+
+.dialog-close-btn:hover, .dialog-close-btn:active {
+  background: var(--neon-cyan);
+  color: #000;
+  box-shadow: 0 0 15px var(--neon-cyan);
+  transform: scale(1.08);
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.dialog-actions .glow-btn {
+  flex: 1;
+  margin: 0;
+}
+
+.help-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 15px 0;
+  text-align: left;
+}
+
+.help-col {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  padding: 12px 14px;
+  border-radius: 6px;
 }
 
 h1 {
@@ -325,20 +390,73 @@ select {
   color: var(--neon-pink);
 }
 
-/* Nipplejs custom cyber styling */
-.joystick .back {
-  border: 1px dashed rgba(255, 255, 255, 0.25) !important;
-  box-shadow: 0 0 12px rgba(0, 0, 0, 0.6) !important;
+/* TouchJoystick Custom Cyber Styling */
+.touch-joystick-base {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }
 
-#left-joystick .joystick .front {
-  box-shadow: 0 0 15px var(--neon-cyan), 0 0 4px #ffffff !important;
-  border: 2px solid #ffffff !important;
+.touch-joystick-reticle {
+  position: absolute;
+  width: 44%;
+  height: 44%;
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  pointer-events: none;
 }
 
-#right-joystick .joystick .front {
-  box-shadow: 0 0 15px var(--neon-pink), 0 0 4px #ffffff !important;
-  border: 2px solid #ffffff !important;
+.touch-joystick-reticle::before,
+.touch-joystick-reticle::after {
+  content: '';
+  position: absolute;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.touch-joystick-reticle::before {
+  top: 50%;
+  left: -20%;
+  right: -20%;
+  height: 1px;
+  transform: translateY(-50%);
+}
+
+.touch-joystick-reticle::after {
+  left: 50%;
+  top: -20%;
+  bottom: -20%;
+  width: 1px;
+  transform: translateX(-50%);
+}
+
+.touch-joystick-thumb {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.touch-joystick-thumb.cyan {
+  background: radial-gradient(circle, #ffffff 15%, var(--neon-cyan) 65%, rgba(0, 242, 255, 0.4) 100%);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 16px var(--neon-cyan), 0 0 6px #ffffff;
+}
+
+.touch-joystick-thumb.pink {
+  background: radial-gradient(circle, #ffffff 15%, var(--neon-pink) 65%, rgba(255, 0, 255, 0.4) 100%);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 16px var(--neon-pink), 0 0 6px #ffffff;
+}
+
+.joystick-zone.active {
+  filter: brightness(1.25);
 }
 
 /* Practice UI */
@@ -399,15 +517,15 @@ body.debug #debug-joystick {
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-  margin: 30px 0;
+  gap: 16px;
+  margin: 20px 0;
   width: 100%;
 }
 
 .stat-item {
   background: rgba(0, 242, 255, 0.05);
   border: 1px solid rgba(0, 242, 255, 0.2);
-  padding: 15px;
+  padding: 12px;
   border-radius: 4px;
   text-align: center;
 }
@@ -451,16 +569,21 @@ body.debug #debug-joystick {
   75% { transform: rotate(-90deg); }
 }
 
-/* Horizontal Screen / Short screen fixes */
-@media screen and (max-height: 500px) {
+/* Horizontal Screen / Short screen fixes for Mobile */
+@media screen and (max-height: 520px) {
   .menu-content {
-    padding: 15px 30px;
+    padding: 14px 24px;
+    max-height: 94vh;
   }
-  h1 {
+  .menu-content h1 {
     font-size: 2rem;
   }
+  .menu-content h2 {
+    margin: 5px 0 10px 0;
+    font-size: 1.3rem;
+  }
   .subtitle {
-    margin-bottom: 15px;
+    margin-bottom: 12px;
     font-size: 0.8rem;
   }
   .menu-buttons {
@@ -475,14 +598,49 @@ body.debug #debug-joystick {
     margin: 0;
     font-size: 0.9rem;
   }
+  .stats-grid {
+    margin: 8px 0;
+    gap: 8px;
+  }
+  .stat-item {
+    padding: 6px 10px;
+  }
+  .stat-item .label {
+    font-size: 0.6rem;
+    margin-bottom: 2px;
+  }
+  .stat-item .value {
+    font-size: 0.95rem;
+  }
+  .dialog-actions {
+    margin-top: 8px;
+    gap: 8px;
+  }
+  .dialog-actions .glow-btn {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+  }
+  .help-columns {
+    margin: 8px 0;
+    gap: 10px;
+  }
+  .help-col {
+    padding: 8px 10px;
+  }
+  .help-col ul {
+    margin: 2px 0 0 0;
+    padding-left: 14px;
+    font-size: 0.75rem;
+    line-height: 1.3;
+  }
 }
 
-
-/* T12: Collision screen flash — brief red vignette, no interaction, fades out. */
+/* T12: Collision screen flash — peripheral red vignette, never covers center screen */
 #collision-flash {
   position: fixed;
   inset: 0;
-  background: rgba(255, 0, 0, 0.35);
+  background: transparent;
+  box-shadow: inset 0 0 70px rgba(255, 30, 30, 0.85);
   pointer-events: none;
   z-index: 9998;
   opacity: 0;
@@ -491,7 +649,7 @@ body.debug #debug-joystick {
 
 #collision-flash.active {
   display: block;
-  animation: collision-fade 0.4s ease-out forwards;
+  animation: collision-fade 0.35s ease-out forwards;
 }
 
 @keyframes collision-fade {

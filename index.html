@@ -91,6 +91,7 @@
 
   <div id="settings-overlay" class="overlay">
     <div class="menu-content">
+      <button class="dialog-close-btn" id="settings-dialog-close" title="Close">✕</button>
       <h2>FLIGHT CONFIG</h2>
       <div class="setting-item">
         <label>MOBILE CONTROLS</label>
@@ -100,12 +101,17 @@
         </select>
         <div id="gyro-status" class="gyro-status" role="status" aria-live="polite"></div>
       </div>
+      <div class="setting-item">
+        <label>MOBILE DEBUGGING</label>
+        <button id="toggle-eruda-btn" class="glow-btn small" style="width: 100%; margin: 5px 0;">TOGGLE MOBILE DEVTOOLS</button>
+      </div>
       <button id="back-btn" class="glow-btn secondary">BACK</button>
     </div>
   </div>
 
   <div id="results-overlay" class="overlay">
     <div class="menu-content">
+      <button class="dialog-close-btn" id="results-dialog-close" title="Close">✕</button>
       <h2>TRAINING COMPLETE</h2>
       <div class="stats-grid">
         <div class="stat-item">
@@ -124,13 +130,15 @@
           <div class="label">MAX ALTITUDE</div>
           <div class="value"><span id="res-alt">0</span> m</div>
         </div>
-        <div class="stat-item" style="grid-column: span 2;">
+        <div class="stat-item" style="grid-column: span 4;">
           <div class="label">CUMULATIVE FLIGHT HOURS</div>
           <div class="value"><span id="res-total-hours">0.0000</span> hrs</div>
         </div>
       </div>
-      <button id="continue-btn" class="glow-btn">START MISSION</button>
-      <button id="restart-practice-btn" class="glow-btn secondary" style="margin-top: 10px;">START PRACTICE</button>
+      <div class="dialog-actions">
+        <button id="continue-btn" class="glow-btn">START MISSION</button>
+        <button id="restart-practice-btn" class="glow-btn secondary">PRACTICE AGAIN</button>
+      </div>
     </div>
   </div>
 
@@ -155,34 +163,38 @@
   </div>
 
   <div id="help-overlay" class="overlay">
-    <div class="menu-content" style="text-align: left; max-width: 600px;">
+    <div class="menu-content" style="text-align: left; max-width: 650px;">
+      <button class="dialog-close-btn" id="help-dialog-close" title="Close">✕</button>
       <h2 style="text-align: center; color: #00f2ff;">HOW TO PLAY</h2>
-      <div style="margin: 20px 0; color: #fff; font-size: 1rem; line-height: 1.6; font-family: 'Rajdhani', sans-serif;">
-        <h3 style="color: #00f2ff; margin-bottom: 5px; font-family: 'Orbitron', sans-serif;">DESKTOP CONTROLS</h3>
-        <ul style="margin-top: 5px; padding-left: 20px; color: rgba(255, 255, 255, 0.8);">
-          <li><b style="color: #fff;">W / S:</b> Pitch Forward / Backward</li>
-          <li><b style="color: #fff;">A / D:</b> Roll Left / Right</li>
-          <li><b style="color: #fff;">SPACE / SHIFT:</b> Thrust Up / Down</li>
-          <li><b style="color: #fff;">Q / E:</b> Yaw (Rotate) Left / Right</li>
-          <li><b style="color: #fff;">R:</b> Reset Drone</li>
-        </ul>
-        <h3 style="color: #ff00ff; margin-bottom: 5px; margin-top: 15px; font-family: 'Orbitron', sans-serif;">MOBILE
-          CONTROLS</h3>
-        <ul style="margin-top: 5px; padding-left: 20px; color: rgba(255, 255, 255, 0.8);">
-          <li><b style="color: #fff;">Left Joystick:</b> Drag Up/Down for Thrust (Altitude), Left/Right to Rotate (Yaw).
-          </li>
-          <li><b style="color: #fff;">Right Joystick:</b> Drag to tilt Forward, Backward, Left, or Right to move.</li>
-          <li style="margin-top: 10px; font-style: italic; color: #00f2ff;">Note: Letting go of the left joystick will
-            automatically trigger Auto-Hover.</li>
-        </ul>
+      <div class="help-columns">
+        <div class="help-col">
+          <h3 style="color: #00f2ff; margin-bottom: 5px; font-family: 'Orbitron', sans-serif; font-size: 0.9rem;">DESKTOP CONTROLS</h3>
+          <ul style="margin-top: 5px; padding-left: 18px; color: rgba(255, 255, 255, 0.85); font-size: 0.85rem; line-height: 1.5;">
+            <li><b style="color: #fff;">W / S:</b> Pitch Forward / Back</li>
+            <li><b style="color: #fff;">A / D:</b> Roll Left / Right</li>
+            <li><b style="color: #fff;">SPACE / SHIFT:</b> Thrust Up / Down</li>
+            <li><b style="color: #fff;">Q / E:</b> Yaw (Rotate) Left / Right</li>
+            <li><b style="color: #fff;">R:</b> Reset Drone</li>
+          </ul>
+        </div>
+        <div class="help-col">
+          <h3 style="color: #ff00ff; margin-bottom: 5px; font-family: 'Orbitron', sans-serif; font-size: 0.9rem;">MOBILE CONTROLS</h3>
+          <ul style="margin-top: 5px; padding-left: 18px; color: rgba(255, 255, 255, 0.85); font-size: 0.85rem; line-height: 1.5;">
+            <li><b style="color: #00f2ff;">Left Stick:</b> Drag UP for Altitude (Climb), DOWN to Descend, LEFT/RIGHT to Rotate (Yaw).</li>
+            <li><b style="color: #ff00ff;">Right Stick:</b> Drag to tilt Forward, Backward, Left, or Right to move in that direction.</li>
+            <li><b style="color: #fff;">Auto-Hover:</b> Keeps altitude steady automatically.</li>
+            <li><b style="color: #fff;">RESET:</b> Button at top of HUD if you get lost.</li>
+          </ul>
+        </div>
       </div>
-      <button id="close-help-btn" class="glow-btn secondary">CLOSE MANUAL</button>
+      <button id="close-help-btn" class="glow-btn secondary" style="margin-top: 15px;">CLOSE MANUAL</button>
     </div>
   </div>
 
   <!-- Mission Complete Overlay (T10) -->
   <div id="mission-complete-overlay" class="overlay">
     <div class="menu-content">
+      <button class="dialog-close-btn" id="mission-dialog-close" title="Close">✕</button>
       <h2 style="color: #00f2ff; text-shadow: 0 0 20px #00f2ff;">MISSION COMPLETE</h2>
       <p class="subtitle">ALL TARGETS ACQUIRED</p>
       <div class="stats-grid" style="grid-template-columns: 1fr;">
@@ -191,8 +203,10 @@
           <div class="value"><span id="mission-final-score">0</span> pts</div>
         </div>
       </div>
-      <button id="mission-replay-btn" class="glow-btn">REPLAY MISSION</button>
-      <button id="mission-menu-btn" class="glow-btn secondary" style="margin-top: 10px;">MAIN MENU</button>
+      <div class="dialog-actions">
+        <button id="mission-replay-btn" class="glow-btn">REPLAY MISSION</button>
+        <button id="mission-menu-btn" class="glow-btn secondary">MAIN MENU</button>
+      </div>
     </div>
   </div>
 
@@ -201,6 +215,17 @@
     <div class="loader"></div>
     <p>ESTABLISHING NEURAL LINK...</p>
   </div>
+
+  <!-- Mobile In-Browser DevTools (Eruda) -->
+  <script src="/eruda.js"></script>
+  <script>
+    if (window.eruda) {
+      const shouldInit = new URLSearchParams(location.search).get('debug') === '1' || localStorage.getItem('drone_eruda') === '1';
+      if (shouldInit) {
+        eruda.init();
+      }
+    }
+  </script>
 
   <script>
     if ('serviceWorker' in navigator) {

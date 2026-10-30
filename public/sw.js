@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'neon-drone-cache-v1.25';
+﻿const CACHE_NAME = 'neon-drone-cache-v1.26';
 
 self.addEventListener('install', (e) => {
   // Immediately install the new service worker to replace the broken one

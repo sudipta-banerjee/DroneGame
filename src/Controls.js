@@ -1,4 +1,4 @@
-import nipplejs from 'nipplejs';
+import { TouchJoystick } from './TouchJoystick.js';
 
 export class Controls {
     constructor() {
@@ -70,70 +70,41 @@ export class Controls {
             container.appendChild(rightZone);
         }
 
-        // Left Joystick: Thrust (Y) and Yaw (X)
-        // Using static mode keeps the joystick permanently centered inside its zone.
-        this.leftJoystick = nipplejs.create({
+        // Left Joystick: Thrust (Y: up = climb) and Yaw (X: left/right rotate)
+        // Built with high-performance Pointer Events + setPointerCapture
+        this.leftJoystick = new TouchJoystick({
             zone: leftZone,
-            mode: 'static',
-            position: { left: '50%', top: '50%' },
-            size: 110,
-            color: {
-                back: 'rgba(0, 242, 255, 0.15)',
-                front: '#00f2ff'
+            theme: 'cyan',
+            size: 130,
+            deadzone: 0.05,
+            onMove: (val) => {
+                // val.x: positive right, negative left. Invert for yaw (+1 yaw = turn left)
+                // val.y: positive UP (thrust climb), negative DOWN (descent)
+                this.joystickData.left.x = -val.x;
+                this.joystickData.left.y = val.y;
             },
-            restOpacity: 0.75,
-            catchDistance: 150
-        });
-
-        this.leftJoystick.on('move', (evt, data) => {
-            if (data.vector) {
-                // data.vector.x: positive is right, negative is left
-                // data.vector.y: positive is up, negative is down
-                // Game engine treats +1 Yaw as turning Left, so invert X
-                this.joystickData.left.x = -Math.min(Math.max(data.vector.x, -1), 1);
-                this.joystickData.left.y = Math.min(Math.max(data.vector.y, -1), 1);
-            } else if (data.angle && data.distance !== undefined) {
-                const mag = Math.min(data.distance / 55, 1.0);
-                this.joystickData.left.x = -Math.cos(data.angle.radian) * mag;
-                this.joystickData.left.y = Math.sin(data.angle.radian) * mag;
+            onEnd: () => {
+                this.joystickData.left.x = 0;
+                this.joystickData.left.y = 0;
             }
         });
 
-        this.leftJoystick.on('end', () => {
-            this.joystickData.left.x = 0;
-            this.joystickData.left.y = 0;
-        });
-
-        // Right Joystick: Pitch (Forward/Back) and Roll (Left/Right)
-        this.rightJoystick = nipplejs.create({
+        // Right Joystick: Pitch (Y: up = forward) and Roll (X: left/right tilt)
+        this.rightJoystick = new TouchJoystick({
             zone: rightZone,
-            mode: 'static',
-            position: { left: '50%', top: '50%' },
-            size: 110,
-            color: {
-                back: 'rgba(255, 0, 255, 0.15)',
-                front: '#ff00ff'
+            theme: 'pink',
+            size: 130,
+            deadzone: 0.05,
+            onMove: (val) => {
+                // val.x: positive right (roll right), negative left (roll left)
+                // val.y: positive up (pitch forward), negative down (pitch backward)
+                this.joystickData.right.x = val.x;
+                this.joystickData.right.y = val.y;
             },
-            restOpacity: 0.75,
-            catchDistance: 150
-        });
-
-        this.rightJoystick.on('move', (evt, data) => {
-            if (data.vector) {
-                // data.vector.x: positive is right (roll right), negative is left (roll left)
-                // data.vector.y: positive is up (pitch forward), negative is down (pitch backward)
-                this.joystickData.right.x = Math.min(Math.max(data.vector.x, -1), 1);
-                this.joystickData.right.y = Math.min(Math.max(data.vector.y, -1), 1);
-            } else if (data.angle && data.distance !== undefined) {
-                const mag = Math.min(data.distance / 55, 1.0);
-                this.joystickData.right.x = Math.cos(data.angle.radian) * mag;
-                this.joystickData.right.y = Math.sin(data.angle.radian) * mag;
+            onEnd: () => {
+                this.joystickData.right.x = 0;
+                this.joystickData.right.y = 0;
             }
-        });
-
-        this.rightJoystick.on('end', () => {
-            this.joystickData.right.x = 0;
-            this.joystickData.right.y = 0;
         });
 
         // Toggle visibility based on device touch capability

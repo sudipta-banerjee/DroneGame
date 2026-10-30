@@ -29,6 +29,7 @@ class Game {
         this.spawnEnvironment();
         this.initGameObjects();
         this.initUI();
+        window.__drone = this.drone;
 
         // Frame timing baseline for a frame-rate-independent loop (T1).
         // Real, clamped delta time makes physics + timers behave identically on 60/90/120Hz
@@ -132,7 +133,11 @@ class Game {
         // Throttle to once per 500 ms to avoid rapid-fire thuds during a sustained contact.
         this._lastCollisionTime = 0;
         if (this.drone && this.drone.body) {
-            this.drone.body.addEventListener('collide', () => {
+            this.drone.body.addEventListener('collide', (e) => {
+                // Ignore resting on the ground, sliding, or gentle contact (< 3.2 m/s impact)
+                const impactVel = e.contact ? Math.abs(e.contact.getImpactVelocityAlongNormal()) : this.drone.body.velocity.length();
+                if (impactVel < 3.2) return;
+
                 const now = performance.now();
                 if (now - this._lastCollisionTime > 500) {
                     this._lastCollisionTime = now;
@@ -294,6 +299,79 @@ class Game {
             this.isPlaying = false;
             this.menuOverlay.classList.add('active');
         });
+
+        // Close buttons for dialogs
+        const settingsClose = document.getElementById('settings-dialog-close');
+        if (settingsClose) {
+            settingsClose.addEventListener('click', () => {
+                this.audio.playUIClick();
+                this.settingsOverlay.classList.remove('active');
+            });
+        }
+
+        const resultsClose = document.getElementById('results-dialog-close');
+        if (resultsClose) {
+            resultsClose.addEventListener('click', () => {
+                this.audio.playUIClick();
+                document.getElementById('results-overlay').classList.remove('active');
+                this.isPlaying = true;
+            });
+        }
+
+        const helpClose = document.getElementById('help-dialog-close');
+        if (helpClose) {
+            helpClose.addEventListener('click', () => {
+                this.audio.playUIClick();
+                document.getElementById('help-overlay').classList.remove('active');
+            });
+        }
+
+        const missionClose = document.getElementById('mission-dialog-close');
+        if (missionClose) {
+            missionClose.addEventListener('click', () => {
+                this.audio.playUIClick();
+                document.getElementById('mission-complete-overlay').classList.remove('active');
+                this.isPlaying = false;
+                this.menuOverlay.classList.add('active');
+            });
+        }
+
+        // Tap backdrop to dismiss dialogs
+        ['settings-overlay', 'results-overlay', 'help-overlay'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('click', (e) => {
+                    if (e.target === el) {
+                        this.audio.playUIClick();
+                        el.classList.remove('active');
+                        if (id === 'results-overlay') this.isPlaying = true;
+                    }
+                });
+            }
+        });
+
+        // Mobile DevTools (Eruda) toggle button
+        const toggleErudaBtn = document.getElementById('toggle-eruda-btn');
+        if (toggleErudaBtn) {
+            const isErudaActive = () => !!(document.getElementById('eruda') || (window.eruda && window.eruda._isInit));
+            const updateErudaLabel = () => {
+                toggleErudaBtn.textContent = isErudaActive() ? 'HIDE MOBILE DEVTOOLS' : 'ENABLE MOBILE DEVTOOLS';
+            };
+            updateErudaLabel();
+            toggleErudaBtn.addEventListener('click', () => {
+                this.audio.playUIClick();
+                if (window.eruda) {
+                    if (isErudaActive()) {
+                        window.eruda.destroy();
+                        localStorage.setItem('drone_eruda', '0');
+                    } else {
+                        window.eruda.init();
+                        localStorage.setItem('drone_eruda', '1');
+                    }
+                    updateErudaLabel();
+                }
+            });
+        }
 
         // Mute toggle button (T11)
         const muteBtn = document.getElementById('mute-btn');
@@ -495,6 +573,11 @@ class Game {
                 // Ground assist: if player gives pitch/roll input while touching the floor, gently lift off
                 if (this.drone.body.position.y < 0.25 && (state.pitch !== 0 || state.roll !== 0)) {
                     this.drone.body.applyForce(new CANNON.Vec3(0, 8, 0), new CANNON.Vec3(0, 0, 0));
+                }
+
+                // Liftoff assist: if player pushes left stick up (thrust), provide solid initial takeoff boost from floor
+                if (this.drone.body.position.y < 0.35 && state.thrust > 0.05) {
+                    this.drone.body.applyForce(new CANNON.Vec3(0, 10 * state.thrust, 0), new CANNON.Vec3(0, 0, 0));
                 }
 
                 this.drone.applyThrust(state.thrust);

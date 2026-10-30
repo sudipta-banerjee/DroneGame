@@ -281,6 +281,29 @@ important because phones and computers run at different speeds. By
 multiplying everything by `deltaTime`, the game runs at the same *speed*
 whether your device is fast or slow.
 
+#### 🔍 The Mystery of the "Frozen" Drone (And How the Camera Saved It!)
+
+When we first started building this game, we ran into a bizarre, hilarious mystery:
+**We pressed the controls, the code worked, but the drone looked completely frozen in place!**
+
+Why did that happen?
+
+In the early prototype, the camera was **fixed directly to the drone** (like a rigid selfie stick welded to the drone's frame). 
+When the physics engine moved the drone forward by 5 metres, the camera moved forward by 5 metres at the exact same millisecond. 
+Because both the drone and the camera were moving in lockstep, the distance between them was **always zero**! To the player looking at the screen, the drone appeared totally stationary.
+
+In physics, this is a famous discovery by **Galileo Galilei and Albert Einstein** called a **Frame of Reference** (or Relative Motion):
+- Imagine you are sitting inside an ultra-smooth high-speed train travelling at 300 km/h.
+- If you place a juice bottle on your tray table, it looks completely still to you.
+- But to someone standing outside on the platform, both you and the bottle are zooming past at 300 km/h!
+
+**How We Fixed It:**
+Instead of welding the camera to the drone, we gave the camera its **own independent position in the world**:
+1. The camera floats independently in world space behind the drone (`offset = (0, 1.2, 4)`).
+2. It uses **Lerp (smooth interpolation)**: instead of snapping instantly, it smoothly glides toward the target position (`this.camera.position.lerp(targetPos, 0.1)`).
+3. It adds **camera drag**: when the drone accelerates, the camera lags slightly behind (`velocityOffset * -0.05`), creating an exhilarating feeling of speed and acceleration!
+4. It only turns with the drone's **Yaw (steering)** — so when the drone pitches forward or banks left/right, the camera stays upright, allowing you to clearly see the drone tilting, diving, and carving through the sky!
+
 ---
 
 ### 📁 `src/Drone.js` — The Drone Itself
@@ -320,6 +343,25 @@ this.rotors.forEach((r, i) => {
 When you pitch forward, the rear rotors (index 0 and 1) work harder and
 spin faster visually — just like on a real quadcopter! This is called
 **differential thrust**.
+
+#### The 30° Max Tilt Limiter (Why your drone never flips!)
+
+In real life, commercial drones like DJI Mavics have an automatic safety rule
+built into their flight computer called **Angle Mode** (or Attitude Limiter).
+
+If a drone tilted 90°, it would point sideways. If it tilted 180°, it would
+be upside down and crash! To prevent this, the drone's flight controller limits
+the maximum tilt angle to **30 degrees** (`maxTiltAngle = (30 * π) / 180`).
+
+When you push the stick all the way forward:
+1. Your input doesn't say "keep spinning forever". It says "tilt forward to 30°".
+2. The `autoLevel()` controller in `Drone.js` calculates the difference between
+   your 30° target angle and the drone's current angle.
+3. As the drone approaches 30°, the turning torque smoothly decreases to zero,
+   locking the drone rock-steady at 30°!
+4. When you let go of the stick, the target becomes 0°, and the drone smoothly
+   snaps back to flat, level hover. Even during a collision, an emergency safety
+   net pulls the drone upright so it cannot flip upside down!
 
 ---
 
@@ -504,6 +546,11 @@ Formula: `result = start + (end - start) × factor`
 - Real DJI drones use the **same** pitch/roll/yaw control system as your game
 - The `autoLevel()` algorithm is similar to the attitude control used on the
   **Mars Ingenuity helicopter** — the first aircraft to fly on another planet!
+- **Einstein's Frame of Reference:** In our very first prototype, the drone looked
+  completely frozen because the camera was welded to it! Both moved at the exact
+  same speed, proving Galileo & Einstein's law: motion is always relative to your
+  viewpoint. Giving the camera an independent position in the world brought the
+  flight to life!
 - The **9.82** constant in your code is why astronauts feel weightless in
   space — there's no floor pushing back up on them
 - The **cross product** you use in `autoLevel()` is also used by GPS

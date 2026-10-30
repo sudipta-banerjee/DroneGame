@@ -7,9 +7,12 @@ export class Drone {
         this.physicsWorld = physicsWorld;
         
         // Settings
-        this.thrustForce = 15;
-        this.rotationSpeed = 0.8;
-        this.tiltForce = 4;
+        this.thrustForce = 22; // Responsive climb on mobile and desktop
+        this.rotationSpeed = 1.0;
+        this.tiltForce = 5;
+        this.maxTiltAngle = (30 * Math.PI) / 180; // 30° maximum tilt limit (prevents flips)
+        this._pitchInput = 0;
+        this._rollInput = 0;
         
         this.initMesh();
         this.initPhysics();
@@ -173,17 +176,11 @@ export class Drone {
     }
 
     moveForward(amount) {
-        // Tilt forward (-X torque for forward tilt)
-        const localTorque = new CANNON.Vec3(-amount * this.tiltForce, 0, 0);
-        const worldTorque = this.body.quaternion.vmult(localTorque);
-        this.body.applyTorque(worldTorque);
+        this._pitchInput = amount;
     }
 
     moveSideways(amount) {
-        // Tilt sideways
-        const localTorque = new CANNON.Vec3(0, 0, -amount * this.tiltForce);
-        const worldTorque = this.body.quaternion.vmult(localTorque);
-        this.body.applyTorque(worldTorque);
+        this._rollInput = amount;
     }
 
     rotate(amount) {
@@ -193,28 +190,74 @@ export class Drone {
         this.body.applyTorque(worldTorque);
     }
 
-    autoLevel(_pitchState, _rollState) {
-        // We removed the early return here!
-        // Now auto-level runs continuously, fighting against W/A/S/D inputs.
-        // This naturally limits the maximum tilt angle and creates an equilibrium, preventing flips!
+    autoLevel(pitchState = 0, rollState = 0) {
+        // Attitude Controller with strict 30° Max Tilt Angle Limiter
+        // Like real commercial flight controllers (DJI / PX4 Angle Mode), stick inputs
+        // request a target tilt angle. The drone tilts to the requested angle (up to 30°)
+        // and holds it steadily, eliminating flipping and uncontrollable tumbling.
 
-        // The drone's local 'up' vector (Y-axis) in world coordinates
-        const localUp = this.body.quaternion.vmult(new CANNON.Vec3(0, 1, 0));
-        // The world's 'up' vector
-        const worldUp = new CANNON.Vec3(0, 1, 0);
+        // Get inputs (from parameters or cached from moveForward/moveSideways)
+        const pitchInput = pitchState !== 0 ? pitchState : (this._pitchInput || 0);
+        const rollInput = rollState !== 0 ? rollState : (this._rollInput || 0);
 
-        // Cross product gives the axis and amount of rotation needed to align the two vectors
-        const alignAxis = new CANNON.Vec3();
-        localUp.cross(worldUp, alignAxis);
+        this._pitchInput = 0;
+        this._rollInput = 0;
 
-        // If completely upside down, the cross product is zero, so give it a nudge
-        if (localUp.y < -0.9 && alignAxis.lengthSquared() < 0.01) {
-            alignAxis.set(1, 0, 0);
+        // Bounded target angles in radians (clamped so combined diagonal tilt never exceeds 30°)
+        let targetPitch = -pitchInput * this.maxTiltAngle;
+        let targetRoll = -rollInput * this.maxTiltAngle;
+        const totalTarget = Math.hypot(targetPitch, targetRoll);
+        if (totalTarget > this.maxTiltAngle) {
+            targetPitch = (targetPitch / totalTarget) * this.maxTiltAngle;
+            targetRoll = (targetRoll / totalTarget) * this.maxTiltAngle;
         }
 
-        // Apply corrective torque (multiplier acts like spring stiffness)
-        const levelingStrength = 8;
-        alignAxis.scale(levelingStrength, alignAxis);
-        this.body.applyTorque(alignAxis);
+        // Current orientation via 'YXZ' Euler angles (decouples Yaw from Pitch and Roll)
+        const qThree = new THREE.Quaternion(
+            this.body.quaternion.x,
+            this.body.quaternion.y,
+            this.body.quaternion.z,
+            this.body.quaternion.w
+        );
+        const euler = new THREE.Euler().setFromQuaternion(qThree, 'YXZ');
+
+        // Angular velocity in local coordinates
+        const localAngVel = this.body.quaternion.conjugate().vmult(this.body.angularVelocity);
+
+        // PD Attitude Controller (proportional drive to target angle + derivative damping)
+        const Kp = 3.5;
+        const Kd = 0.6;
+
+        const torquePitch = Kp * (targetPitch - euler.x) - Kd * localAngVel.x;
+        const torqueRoll  = Kp * (targetRoll  - euler.z) - Kd * localAngVel.z;
+
+        const localTorque = new CANNON.Vec3(torquePitch, 0, torqueRoll);
+        this.body.applyTorque(this.body.quaternion.vmult(localTorque));
+
+        // Hard Anti-Flip Safety Envelope:
+        // If an obstacle impact or collision tries to knock the drone past 30°,
+        // apply emergency restorative alignment so the drone can NEVER flip upside down.
+        const localUp = this.body.quaternion.vmult(new CANNON.Vec3(0, 1, 0));
+        const maxTiltCos = Math.cos(this.maxTiltAngle); // cos(30°) ≈ 0.866
+
+        if (localUp.y < maxTiltCos) {
+            const worldUp = new CANNON.Vec3(0, 1, 0);
+            const alignAxis = new CANNON.Vec3();
+            localUp.cross(worldUp, alignAxis);
+
+            if (localUp.y < 0) {
+                // If knocked upside down, apply emergency recovery torque
+                if (alignAxis.lengthSquared() < 0.001) alignAxis.set(1, 0, 0);
+                alignAxis.scale(10.0, alignAxis);
+            } else {
+                alignAxis.scale(5.0, alignAxis);
+            }
+            this.body.applyTorque(alignAxis);
+
+            // Damp excessive tumble momentum
+            localAngVel.x *= 0.8;
+            localAngVel.z *= 0.8;
+            this.body.angularVelocity = this.body.quaternion.vmult(localAngVel);
+        }
     }
 }
